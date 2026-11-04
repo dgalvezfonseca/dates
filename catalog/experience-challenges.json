@@ -1,0 +1,26 @@
+{
+  "conexión-y-conversación": {
+    "title": "Pase de escucha",
+    "description": "Cada quien elige una pregunta. Escuchen hasta el final y, si les nace, compartan qué detalle les dio curiosidad."
+  },
+  "aventuras-y-diversión": {
+    "title": "Misión de observación",
+    "description": "Encuentren juntos tres detalles del entorno que normalmente pasarían por alto. Elijan un ritmo y recorrido cómodo para ambos."
+  },
+  "complicidad-y-equipo": {
+    "title": "Reto por turnos",
+    "description": "Dividan una tarea de la experiencia en dos partes y cambien de rol a mitad del camino. Pueden ajustar o saltar el reto."
+  },
+  "romance-y-detalles": {
+    "title": "Un detalle elegido",
+    "description": "Cada quien propone un gesto bonito y sencillo. Antes de hacerlo, pregunten si a la otra persona le apetece."
+  },
+  "vida-cotidiana": {
+    "title": "Pequeño trabajo en equipo",
+    "description": "Elijan una tarea cotidiana breve y háganla juntos. Después compartan qué parte les resultó más fácil o agradable."
+  },
+  "conversaciones-importantes": {
+    "title": "Acuerdo de pausa",
+    "description": "Antes de conversar, acuerden una señal para detenerse o cambiar de tema. No hace falta resolver nada hoy."
+  }
+}

@@ -1,0 +1,58 @@
+name: GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the built site (leave false for a build-only check)
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_BASE_PATH: /dates/
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check repository and public configuration
+        shell: bash
+        run: |
+          test "$GITHUB_REPOSITORY" = "dgalvezfonseca/dates" || {
+            echo "Expected repository dgalvezfonseca/dates; got $GITHUB_REPOSITORY" >&2
+            exit 1
+          }
+          test -n "$VITE_SUPABASE_URL" || { echo "Missing repository variable VITE_SUPABASE_URL" >&2; exit 1; }
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "Missing repository variable VITE_SUPABASE_PUBLISHABLE_KEY" >&2; exit 1; }
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    if: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v5
+        id: deployment

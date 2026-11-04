@@ -1,0 +1,52 @@
+{
+  "divertidas": [
+    { "id": "fun-fav-recent", "text": "¿Qué cosa pequeña te hizo reír últimamente?" },
+    { "id": "fun-superpower", "text": "Si pudieras aprender una habilidad en una tarde, ¿cuál elegirías?" },
+    { "id": "fun-perfect-snack", "text": "¿Cuál sería tu botana ideal para una tarde sin planes?" },
+    { "id": "fun-silly-tradition", "text": "¿Qué costumbre divertida te gustaría inventar por un día?" },
+    { "id": "fun-movie-world", "text": "¿En qué mundo de una película o libro pasarías una tarde?" },
+    { "id": "fun-small-adventure", "text": "¿Qué plan espontáneo te suele mejorar el día?" },
+    { "id": "fun-child-game", "text": "¿Qué juego de tu infancia todavía disfrutas?" },
+    { "id": "fun-soundtrack", "text": "¿Qué canción pondrías para animar un trayecto corto?" }
+  ],
+  "gustos": [
+    { "id": "taste-comfort", "text": "¿Qué detalle convierte un lugar en un sitio cómodo para ti?" },
+    { "id": "taste-curiosity", "text": "¿Qué tema podrías explorar durante horas por pura curiosidad?" },
+    { "id": "taste-rest", "text": "¿Cómo se ve para ti un rato de descanso que sí se siente reparador?" },
+    { "id": "taste-music", "text": "¿Qué tipo de música acompaña mejor tus días normales?" },
+    { "id": "taste-food-memory", "text": "¿Qué comida te recuerda a una persona o momento querido?" },
+    { "id": "taste-space", "text": "¿Qué objeto de tu espacio dice algo de lo que disfrutas?" },
+    { "id": "taste-learning", "text": "¿Qué has aprendido últimamente que te gustaría seguir practicando?" },
+    { "id": "taste-social", "text": "¿Qué equilibrio entre planes tranquilos y convivir con otras personas te funciona?" }
+  ],
+  "suenos": [
+    { "id": "dream-day", "text": "¿Qué te gustaría incluir más seguido en una semana ideal y realista?" },
+    { "id": "dream-skill", "text": "¿Qué habilidad te daría ilusión desarrollar en los próximos años?" },
+    { "id": "dream-place", "text": "¿Qué lugar te gustaría conocer algún día y qué te atrae de él?" },
+    { "id": "dream-project", "text": "¿Qué proyecto pequeño te gustaría empezar cuando tengas espacio?" },
+    { "id": "dream-proud", "text": "¿Qué logro personal te gustaría celebrar, aunque parezca sencillo?" },
+    { "id": "dream-season", "text": "¿Qué te gustaría que tuviera más lugar en la etapa que estás viviendo?" },
+    { "id": "dream-curious", "text": "¿Qué experiencia nueva te da curiosidad probar a tu propio ritmo?" },
+    { "id": "dream-support", "text": "¿Qué tipo de compañía o apoyo suele ayudarte a perseguir una meta?" }
+  ],
+  "romance": [
+    { "id": "romance-detail", "text": "¿Qué gesto sencillo suele hacerte sentir tomado en cuenta?" },
+    { "id": "romance-memory", "text": "¿Qué recuerdo amable te gusta volver a contar?" },
+    { "id": "romance-moment", "text": "¿Qué momento cotidiano te parece especialmente bonito cuando se comparte?" },
+    { "id": "romance-note", "text": "¿Qué frase cariñosa te gustaría recibir en un día normal?" },
+    { "id": "romance-care", "text": "¿Qué forma de cuidado te resulta cómoda y natural?" },
+    { "id": "romance-song", "text": "¿Qué canción te recuerda a una etapa bonita de tu vida?" },
+    { "id": "romance-attention", "text": "¿Qué detalle te ayuda a sentir que alguien está presente contigo?" },
+    { "id": "romance-tradition", "text": "¿Qué pequeño ritual compartido te gustaría probar alguna vez?" }
+  ],
+  "profundas": [
+    { "id": "deep-change", "text": "¿Qué perspectiva tuya ha cambiado con el tiempo? Puedes responder en general." },
+    { "id": "deep-boundary", "text": "¿Qué te ayuda a pedir una pausa cuando necesitas espacio?" },
+    { "id": "deep-listening", "text": "¿Qué hace que una conversación se sienta atenta para ti?" },
+    { "id": "deep-values", "text": "¿Qué valor te gustaría practicar más en tu vida diaria?" },
+    { "id": "deep-resilience", "text": "¿Qué actividad o persona te ayuda a recuperar calma después de un día difícil?" },
+    { "id": "deep-independence", "text": "¿Qué espacio personal disfrutas cuidar incluso cuando compartes tiempo?" },
+    { "id": "deep-learning", "text": "¿Qué aprendiste de una experiencia que hoy prefieres mirar con más amabilidad?" },
+    { "id": "deep-care", "text": "¿Cómo notas que necesitas bajar el ritmo? También puedes pasar esta pregunta." }
+  ]
+}
