@@ -1,24 +1,20 @@
-import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Copy, Flower2, Heart, House, LoaderCircle, LogOut, Search, ShieldCheck, Sparkles, UsersRound, X } from 'lucide-react'
+import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, LoaderCircle, LogOut, Search, ShieldCheck, Sparkles, UsersRound, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
+import { coupleErrorMessage } from './lib/coupleErrorMessage'
 import { filterDates } from './lib/filterDates.mjs'
+import { normalizeInviteCode } from './lib/inviteCode.mjs'
+import { categories } from './lib/categories'
 
-const categories = [
-  { id: 'conexión-y-conversación', label: 'Conexión y conversación', count: 15 },
-  { id: 'aventuras-y-diversión', label: 'Aventuras y diversión', count: 20 },
-  { id: 'complicidad-y-equipo', label: 'Complicidad y trabajo en equipo', count: 20 },
-  { id: 'romance-y-detalles', label: 'Romance y pequeños detalles', count: 15 },
-  { id: 'vida-cotidiana', label: 'La vida cotidiana y real', count: 15 },
-  { id: 'conversaciones-importantes', label: 'Conversaciones que importan', count: 15 },
-]
 
 const AnimatedRoute = lazy(() => import('./components/AnimatedRoute'))
 const DatePlanningPage = lazy(() => import('./components/DatePlanningPage'))
 const DateExperiencePage = lazy(() => import('./components/DateExperiencePage'))
 const MemoriesPage = lazy(() => import('./components/MemoriesPage'))
+const CouplePage = lazy(() => import('./components/CouplePage'))
 
 type DateItem = { id: string; title: string; category: string; description: string; objective: string; duration_minutes: number; energy: string; setting: string; materials: string[]; preparation: string; steps: string[]; prompts: string[]; low_energy_alternative: string; accessibility: string[]; consent: string[]; enjoyment_tips: string }
 type Membership = { couple_id: string; role: string }
@@ -29,6 +25,7 @@ export default function App() {
   const [membership, setMembership] = useState<Membership | null>(null)
   const [groupReady, setGroupReady] = useState(false)
   const [groupError, setGroupError] = useState('')
+  const [memberCount, setMemberCount] = useState<number | null>(null)
   const location = useLocation()
 
   useEffect(() => {
@@ -40,11 +37,31 @@ export default function App() {
 
   useEffect(() => {
     let active = true
-    if (!supabase || !session?.user) { setMembership(null); setGroupError(''); setGroupReady(true); return }
+    if (!supabase || !session?.user) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
     setGroupReady(false)
+    setMemberCount(null)
+    let coupleId: string | null = null
+    const refreshCount = async () => {
+      if (!coupleId) return
+      const { count, error } = await supabase!.from('couple_members').select('user_id', { count: 'exact', head: true }).eq('couple_id', coupleId)
+      if (active && !error) setMemberCount(count ?? 0)
+    }
+    const timer = window.setInterval(() => { void refreshCount() }, 4000)
     supabase!.from('couple_members').select('couple_id, role').eq('user_id', session.user.id).maybeSingle()
-      .then(({ data, error }) => { if (active) { setMembership(data); setGroupError(error?.message ?? ''); setGroupReady(true) } })
-    return () => { active = false }
+      .then(async ({ data, error }) => {
+        if (!active) return
+        coupleId = data?.couple_id ?? null
+        setMembership(data)
+        if (error) setGroupError(error.message)
+        else if (data) {
+          const result = await supabase!.from('couple_members').select('user_id', { count: 'exact', head: true }).eq('couple_id', data.couple_id)
+          if (!active) return
+          setMemberCount(result.count ?? 0)
+          setGroupError(result.error?.message ?? '')
+        } else { setMemberCount(null); setGroupError('') }
+        setGroupReady(true)
+      })
+    return () => { active = false; window.clearInterval(timer) }
   }, [session])
 
   if (!supabase) return <SetupScreen />
@@ -52,8 +69,9 @@ export default function App() {
   if (session && groupError) return <ConnectionError message={groupError} />
   if (!session) return <AuthScreen />
   if (!membership) return <PairingScreen email={session.user.email ?? ''} onSignOut={() => supabase!.auth.signOut()} />
+  if (memberCount === null) return <LoadingScreen />
 
-  return <AppShell email={session.user.email ?? ''} userId={session.user.id} membership={membership} locationKey={location.key} onSignOut={() => supabase!.auth.signOut()} />
+  return <AppShell email={session.user.email ?? ''} userId={session.user.id} membership={membership} memberCount={memberCount} locationKey={location.key} onSignOut={() => supabase!.auth.signOut()} />
 }
 
 function SetupScreen() {
@@ -87,37 +105,54 @@ function AuthScreen() {
 
 function PairingScreen({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const [invite, setInvite] = useState('')
-  const [createdCode, setCreatedCode] = useState('')
-  const [spaceCreated, setSpaceCreated] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
 
-  async function createSpace() { setBusy(true); setError(''); const { error: createError } = await supabase!.rpc('create_couple'); if (createError) setError(createError.message); else setSpaceCreated(true); setBusy(false) }
-  async function createInvite() { setBusy(true); setError(''); const { data, error: inviteError } = await supabase!.rpc('create_couple_invite'); if (inviteError) setError(inviteError.message); else setCreatedCode(data as string); setBusy(false) }
-  async function acceptInvite(event: FormEvent) { event.preventDefault(); setBusy(true); setError(''); setNotice(''); const { error: e } = await supabase!.rpc('accept_couple_invite', { p_token: invite.trim() }); if (e) setError(e.message); else { setNotice('Ya formas parte de un espacio compartido.'); window.location.reload() } setBusy(false) }
-  async function copyCode() { await navigator.clipboard.writeText(createdCode); setNotice('Invitación copiada. Compártela solo con la otra persona.') }
+  function openCircle(message: string) {
+    sessionStorage.setItem('circle-notice', message)
+    window.location.assign(new URL('circulo', new URL(import.meta.env.BASE_URL, window.location.origin)).href)
+  }
+  async function createSpace() {
+    setBusy(true); setError('')
+    try {
+      const { error: createError } = await supabase!.rpc('create_couple')
+      if (createError) setError(coupleErrorMessage(createError))
+      else openCircle('Círculo creado. Ahora son 1 de 2 integrantes.')
+    } catch (e) { setError(coupleErrorMessage(e)) }
+    finally { setBusy(false) }
+  }
+  async function acceptInvite(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError('')
+    try {
+      const { error: acceptError } = await supabase!.rpc('accept_couple_invite', { p_token: invite.trim() })
+      if (acceptError) setError(coupleErrorMessage(acceptError))
+      else openCircle('Vinculación confirmada. Ya comparten el mismo círculo.')
+    } catch (e) { setError(coupleErrorMessage(e)) }
+    finally { setBusy(false) }
+  }
 
-  return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>{spaceCreated ? 'Invita a la otra persona.' : 'Un espacio, solo para ustedes.'}</h1><p className="muted">{spaceCreated ? 'Este código solo se puede usar una vez y vence en siete días.' : 'Crea un espacio compartido o acepta una invitación de uso único. Nadie más puede sumarse.'}</p>
-    {!spaceCreated ? <><button className="button primary full" onClick={createSpace} disabled={busy}><UsersRound size={18} /> Crear nuestro espacio <ArrowRight size={17} /></button><div className="divider"><span>o ya tienes una invitación</span></div><form className="form-stack" onSubmit={acceptInvite}><label>Código de invitación<input value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="Pega el código aquí" required /></label><button className="button secondary full" disabled={busy}>Vincular cuenta <ChevronRight size={17} /></button></form></> : !createdCode ? <button className="button primary full" onClick={createInvite} disabled={busy}><ShieldCheck size={18} /> Crear invitación segura <ArrowRight size={17} /></button> : null}
-    {createdCode && <><div className="invite-box"><p>Invitación de un solo uso · vence en 7 días</p><div><code>{createdCode}</code><button aria-label="Copiar invitación" onClick={copyCode}><Copy size={17} /></button></div></div><button className="button secondary full" onClick={() => window.location.reload()}>Continuar a nuestro espacio</button></>}{error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-success" role="status">{notice}</p>}<button className="text-button auth-toggle" onClick={onSignOut}>Cerrar sesión</button></section></main>
+  return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>Nuestro círculo</h1><p className="muted">Un espacio privado para dos. Crea uno o únete con el código que te compartieron.</p>
+    <div className="pairing-choice"><div className="pairing-choice-heading"><span className="pairing-icon"><UsersRound size={19} /></span><div><h2>Crear nuestro círculo</h2><p>Empiezas tú y después invitas a una persona.</p></div></div><button className="button primary full" onClick={createSpace} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={17} />}Crear círculo</button></div>
+    <div className="divider"><span>o ya recibiste un código</span></div>
+    <form className="form-stack" onSubmit={acceptInvite}><label htmlFor="circle-invite">Unirme a un círculo existente</label><input id="circle-invite" className="invite-input" value={invite} onChange={(e) => setInvite(normalizeInviteCode(e.target.value))} placeholder="Código de 48 caracteres" autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck={false} minLength={48} pattern="[a-fA-F0-9]{48}" required /><p className="field-help">El código es de un solo uso y vence siete días después de crearse.</p><button className="button secondary full" disabled={busy || invite.length !== 48}>{busy ? <LoaderCircle className="spin" size={18} /> : <UsersRound size={18} />}Unirme al círculo</button></form>
+    {error && <p className="form-error pairing-feedback" role="alert">{error}</p>}<button className="text-button auth-toggle" onClick={onSignOut}>Cerrar sesión</button></section></main>
 }
 
-function AppShell({ email, userId, membership, locationKey, onSignOut }: { email: string; userId: string; membership: Membership; locationKey: string; onSignOut: () => void }) {
+function AppShell({ email, userId, membership, memberCount, locationKey, onSignOut }: { email: string; userId: string; membership: Membership; memberCount: number; locationKey: string; onSignOut: () => void }) {
   return <div className="app-layout"><aside className="side-rail"><BrandMark /><div className="brand-copy"><strong>100 veces<br />tú y yo</strong><span>Sin prisas, a nuestra manera.</span></div><Navigation /><div className="side-bottom"><span className="account-dot">{email.slice(0, 1).toUpperCase()}</span><div className="account-copy"><strong>Tu espacio privado</strong><span>Dos personas, nada más</span></div><button className="icon-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onSignOut}><LogOut size={17} /></button></div></aside>
-    <main className="main-content"><header className="mobile-header"><BrandMark /><span>100 veces tú y yo</span><button className="icon-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onSignOut}><LogOut size={17} /></button></header><Suspense fallback={<LoadingScreen />}><AnimatedRoute locationKey={locationKey}><Routes><Route path="/" element={<HomePage email={email} role={membership.role} coupleId={membership.couple_id} />} /><Route path="/citas" element={<CatalogPage coupleId={membership.couple_id} />} /><Route path="/planear" element={<DatePlanningPage coupleId={membership.couple_id} userId={userId} />} /><Route path="/cita" element={<DateExperiencePage coupleId={membership.couple_id} userId={userId} />} /><Route path="/recuerdos" element={<MemoriesPage coupleId={membership.couple_id} userId={userId} />} /><Route path="/nosotros" element={<ComingSoon title="Nuestro espacio" copy="Las preferencias y notas privadas tendrán un lugar seguro, separado de lo que decidan compartir." icon={<Heart />} />} /></Routes></AnimatedRoute></Suspense><div className="mobile-nav"><Navigation /></div></main></div>
+    <main className="main-content"><header className="mobile-header"><BrandMark /><span>100 veces tú y yo</span><button className="icon-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onSignOut}><LogOut size={17} /></button></header><Suspense fallback={<LoadingScreen />}><AnimatedRoute locationKey={locationKey}><Routes><Route path="/" element={<HomePage email={email} role={membership.role} coupleId={membership.couple_id} memberCount={memberCount} />} /><Route path="/circulo" element={<CouplePage role={membership.role} memberCount={memberCount} />} /><Route path="/citas" element={<CatalogPage coupleId={membership.couple_id} />} /><Route path="/planear" element={memberCount === 2 ? <DatePlanningPage coupleId={membership.couple_id} userId={userId} /> : <Navigate to="/circulo" replace />} /><Route path="/cita" element={<DateExperiencePage coupleId={membership.couple_id} userId={userId} />} /><Route path="/recuerdos" element={<MemoriesPage coupleId={membership.couple_id} userId={userId} />} /><Route path="/nosotros" element={<ComingSoon title="Nuestro espacio" copy="Las preferencias y notas privadas tendrán un lugar seguro, separado de lo que decidan compartir." icon={<Heart />} />} /></Routes></AnimatedRoute></Suspense><div className="mobile-nav"><Navigation /></div></main></div>
 }
 
 function Navigation() {
-  const items = [{ to: '/', label: 'Inicio', Icon: House }, { to: '/citas', label: 'Explorar citas', Icon: Compass }, { to: '/recuerdos', label: 'Recuerdos', Icon: BookHeart }, { to: '/nosotros', label: 'Nosotros', Icon: Heart }]
+  const items = [{ to: '/', label: 'Inicio', Icon: House }, { to: '/circulo', label: 'Círculo', Icon: UsersRound }, { to: '/citas', label: 'Explorar citas', Icon: Compass }, { to: '/recuerdos', label: 'Recuerdos', Icon: BookHeart }, { to: '/nosotros', label: 'Nosotros', Icon: Heart }]
   return <nav className="nav-list" aria-label="Navegación principal">{items.map(({ to, label, Icon }) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><Icon size={19} strokeWidth={1.7} /><span>{label}</span></NavLink>)}</nav>
 }
 
-function HomePage({ email, role, coupleId }: { email: string; role: string; coupleId: string }) {
+function HomePage({ email, role, coupleId, memberCount }: { email: string; role: string; coupleId: string; memberCount: number }) {
   return <div className="page-wrap"><div className="page-heading"><div><p className="eyebrow">Un lugar para volver a encontrarse</p><h1>Hola, qué bueno<br className="mobile-break" /> tenerte por aquí.</h1><p className="muted">Este espacio no tiene prisa. Ustedes deciden cómo empieza.</p></div><LilyArt /></div>
     <section className="welcome-panel"><div className="welcome-copy"><span className="tiny-label"><Sparkles size={14} /> A SU PROPIO RITMO</span><h2>Lo bonito está<br />en ir descubriendo.</h2><p>Una buena conversación, algo nuevo por probar, o simplemente compartir el momento.</p><Link to="/planear" className="button light">Preparar nuestra próxima cita <ArrowRight size={17} /></Link></div><div className="welcome-orbit"><div className="orbit-ring" /><div className="orbit-core"><Heart size={33} strokeWidth={1.3} /></div><span className="orbit-dot dot-one" /><span className="orbit-dot dot-two" /></div></section>
     <div className="section-title-row"><div><p className="eyebrow">EL COMIENZO</p><h2>Su espacio compartido</h2></div><span className="private-chip"><ShieldCheck size={14} /> Privado</span></div>
-    <div className="home-grid"><NextDateCard coupleId={coupleId} /><UniqueProgress coupleId={coupleId} /><article className="info-card"><div className="card-icon rose"><Flower2 size={20} /></div><p className="card-kicker">100 EXPERIENCIAS</p><h3>El catálogo les espera</h3><p className="muted small">Seis maneras distintas de compartir tiempo, sin convertirlo en una obligación.</p><Link to="/citas" className="inline-link">Ver catálogo <ChevronRight size={16} /></Link></article><article className="info-card soft-sage"><div className="card-icon sage"><UsersRound size={20} /></div><p className="card-kicker">ESPACIO SEGURO</p><h3>Vinculación confirmada</h3><p className="muted small">Este espacio tiene dos participantes y una invitación segura de un solo uso.</p><span className="status-line"><Check size={15} /> {role === 'owner' ? 'Creado por ti' : 'Te uniste a este espacio'}</span></article></div>
+    <div className="home-grid"><NextDateCard coupleId={coupleId} /><UniqueProgress coupleId={coupleId} /><article className="info-card"><div className="card-icon rose"><Flower2 size={20} /></div><p className="card-kicker">100 EXPERIENCIAS</p><h3>El catálogo les espera</h3><p className="muted small">Seis maneras distintas de compartir tiempo, sin convertirlo en una obligación.</p><Link to="/citas" className="inline-link">Ver catálogo <ChevronRight size={16} /></Link></article><article className="info-card soft-sage"><div className="card-icon sage"><UsersRound size={20} /></div><p className="card-kicker">NUESTRO CÍRCULO</p><h3>{memberCount} de 2 integrantes</h3><p className="muted small">{memberCount === 2 ? 'Su espacio está listo para compartir experiencias.' : 'Comparte una invitación para completar el espacio.'}</p><span className="status-line"><Check size={15} /> {role === 'owner' ? 'Creado por ti' : 'Te uniste a este espacio'}</span><Link to="/circulo" className="inline-link circle-card-link">Ver círculo <ChevronRight size={16} /></Link></article></div>
     <footer className="page-footer">Una invitación, nunca una obligación. <span>·</span> Sesión de {email}</footer></div>
 }
 

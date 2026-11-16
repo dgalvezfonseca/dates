@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import questionDeck from '../../catalog/question-deck.json'
 import challenges from '../../catalog/experience-challenges.json'
 import type { Database, Json } from '../lib/database.types'
+import { planningErrorMessage } from '../lib/planningErrorMessage.mjs'
 import { supabase } from '../lib/supabase'
 
 type Experience = Pick<Database['public']['Tables']['date_catalog']['Row'], 'id' | 'title' | 'category' | 'description' | 'objective' | 'duration_minutes' | 'energy' | 'setting' | 'materials' | 'preparation' | 'steps' | 'prompts' | 'low_energy_alternative' | 'accessibility' | 'consent' | 'enjoyment_tips'>
@@ -69,14 +70,14 @@ export default function DateExperiencePage({ coupleId, userId }: { coupleId: str
   useEffect(() => {
     let mounted = true
     const load = async () => {
-      try { await refresh() } catch (cause) { if (mounted) setError((cause as Error).message) }
+      try { await refresh() } catch (cause) { if (mounted) setError(planningErrorMessage(cause)) }
       finally { if (mounted) setLoading(false) }
     }
     void load()
-    const timer = window.setInterval(() => { void refresh().catch((cause) => setError((cause as Error).message)) }, 5000)
+    const timer = window.setInterval(() => { void refresh().catch((cause) => setError(planningErrorMessage(cause))) }, 5000)
     const channel = supabase?.channel(`experience-${coupleId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'date_experience_progress', filter: `couple_id=eq.${coupleId}` }, () => { void refresh().catch((cause) => setError((cause as Error).message)) })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'date_experience_confirmations' }, () => { void refresh().catch((cause) => setError((cause as Error).message)) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'date_experience_progress', filter: `couple_id=eq.${coupleId}` }, () => { void refresh().catch((cause) => setError(planningErrorMessage(cause))) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'date_experience_confirmations' }, () => { void refresh().catch((cause) => setError(planningErrorMessage(cause))) })
       .subscribe()
     return () => { mounted = false; window.clearInterval(timer); if (channel) void supabase?.removeChannel(channel) }
   }, [coupleId, refresh])
@@ -101,7 +102,7 @@ export default function DateExperiencePage({ coupleId, userId }: { coupleId: str
   async function act(request: () => Promise<unknown>, success?: string) {
     setBusy(true); setError(''); setNotice('')
     try { await request(); if (success) setNotice(success); await refresh() }
-    catch (cause) { setError((cause as Error).message) }
+    catch (cause) { setError(planningErrorMessage(cause)) }
     finally { setBusy(false) }
   }
 
@@ -151,7 +152,10 @@ export default function DateExperiencePage({ coupleId, userId }: { coupleId: str
         <p className="experience-favorite-note"><Bookmark size={14}/> Tus preguntas favoritas solo aparecen en tu cuenta.</p>
       </section>
       <details className="experience-panel quiet-panel"><summary>Una alternativa más tranquila</summary><p>{experience.low_energy_alternative}</p></details>
-      <section className="experience-finish"><p className="muted">Al terminar, cada quien confirma desde su cuenta. La cita solo aparecerá como completada cuando ambos estén de acuerdo.</p><button className="button primary" disabled={busy || isFinisher} onClick={() => void act(async () => { const result = await supabase!.rpc('finish_date_experience', { p_session_id: session.id }); if (result.error) throw result.error; if (!result.data) setNotice('Tu confirmación quedó guardada. Falta la de la otra persona.') })}>{isFinisher ? partnerFinished ? 'Confirmada por ambos' : 'Tu confirmación quedó guardada' : 'Finalizar experiencia'}</button></section>
+      <section className="experience-finish"><p className="muted">Al terminar, cada quien confirma desde su cuenta. La cita solo aparecerá como completada cuando ambos estén de acuerdo.</p><button className="button primary" disabled={busy || isFinisher} onClick={() => void act(async () => { const result = await supabase!.rpc('finish_date_experience', { p_session_id: session.id }); if (result.error) throw result.error })}>{isFinisher ? partnerFinished ? 'Confirmada por ambos' : 'Tu confirmación quedó guardada' : 'Finalizar experiencia'}</button>
+        {/* Derived from server state so it disappears as soon as the other phone confirms. */}
+        {session.status !== 'completed' && isFinisher && !partnerFinished && <p className="form-success" role="status">Tu confirmación quedó guardada. Falta la de la otra persona.</p>}
+        {session.status !== 'completed' && !isFinisher && partnerFinished && <p className="form-success" role="status">La otra persona ya confirmó que terminaron. Falta tu confirmación.</p>}</section>
     </>}
     {session.status === 'completed' && <section className="experience-panel experience-done"><Check size={22}/><h2>Gracias por compartir esta experiencia.</h2><p>Quedó marcada como completada por ambos.</p></section>}
     {finishers.length > 0 && session.status !== 'completed' && <p className="experience-finish-status" role="status">{isFinisher ? 'Tu confirmación está guardada.' : 'La otra persona confirmó que terminó.'} {partnerFinished && !isFinisher ? 'Ahora puedes confirmar desde tu cuenta.' : ''}</p>}
