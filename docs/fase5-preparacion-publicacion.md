@@ -52,7 +52,7 @@ La comparación de migraciones, el dry-run y las consultas de metadatos en produ
 
 ## Pendientes antes de publicar
 
-1. Revisar el riesgo de `DROP TABLE public.ai_generations` de la migración `20261104061135_date_experience_mode.sql`; producción tiene hoy cero filas, pero el `DROP` sigue siendo una eliminación de esquema y requiere decisión explícita.
+1. Validar en QA que la candidata de `20261104061135_date_experience_mode.sql` conserva `public.ai_generations`; documentar que staging puede carecer de esa tabla por la versión anterior.
 2. Obtener aprobación separada para aplicar las migraciones pendientes en producción. Primero volver a ejecutar el dry-run y revisar su salida inmediatamente antes de aplicar.
 3. Confirmar las dos variables públicas de GitHub Actions y que el source de Pages siga en GitHub Actions.
 4. Configurar Site URL y Redirect URL de Supabase Auth sin comodines más amplios que el subpath de Pages.
