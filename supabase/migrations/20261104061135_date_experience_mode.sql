@@ -226,11 +226,3 @@ begin
 end;
 $$;
 
-do $$
-begin
-  if exists (select 1 from public.ai_generations limit 1) then
-    raise exception 'public.ai_generations contains data; archive and review it before removing the unused AI table';
-  end if;
-  drop table public.ai_generations;
-end;
-$$;

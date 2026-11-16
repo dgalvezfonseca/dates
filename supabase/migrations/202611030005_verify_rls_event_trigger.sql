@@ -1,19 +1,19 @@
-do $$
+-- Verify the security property directly instead of relying on an unportable
+-- superuser-only event trigger to protect migration-created tables.
+do $migration$
 declare
-  probe_table text := format('__rls_auto_enable_check_%s', txid_current());
-  rls_enabled boolean;
+  v_unprotected text;
 begin
-  execute format('create table public.%I (id integer)', probe_table);
-
-  select c.relrowsecurity into rls_enabled
+  select string_agg(format('%I.%I', n.nspname, c.relname), ', ' order by c.relname)
+  into v_unprotected
   from pg_class c
   join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public' and c.relname = probe_table;
+  where n.nspname = 'public'
+    and c.relkind in ('r', 'p')
+    and not c.relrowsecurity;
 
-  if rls_enabled is distinct from true then
-    raise exception 'ensure_rls did not enable RLS on a newly created public table';
+  if v_unprotected is not null then
+    raise exception 'public tables without row level security: %', v_unprotected;
   end if;
-
-  execute format('drop table public.%I', probe_table);
-end;
-$$;
+end
+$migration$;

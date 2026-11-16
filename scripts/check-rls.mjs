@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 const sql = await readFile(new URL('../supabase/migrations/202611030001_initial_schema.sql', import.meta.url), 'utf8')
@@ -24,9 +25,17 @@ assert.equal([...catalogMigration.matchAll(/^  \(/gm)].length, 100, 'Catalog see
 assert.match(catalogMigration, /on conflict \(id\) do update/i, 'Catalog seed must be repeatable by stable ID.')
 assert.doesNotMatch(catalogMigration, /\b(delete|truncate|drop table)\b/i, 'Catalog seed must not delete or drop existing data.')
 assert.match(hardeningMigration, /revoke all on function public\.rls_auto_enable\(\) from public, anon, authenticated/i, 'The platform RLS event function must not be directly executable by API roles.')
-assert.match(triggerCheckMigration, /relrowsecurity/i, 'The RLS event trigger must have a live verification migration.')
-assert.match(triggerCheckMigration, /create table public\.%I/i, 'The live trigger verification must create a public probe table.')
-assert.match(triggerCheckMigration, /drop table public\.%I/i, 'The live trigger verification must remove its temporary probe table.')
+assert.match(hardeningMigration, /to_regprocedure\('public\.rls_auto_enable\(\)'\)/i, 'The optional RLS event function must be checked before access changes.')
+assert.match(hardeningMigration, /p\.prosecdef[\s\S]+?p\.proconfig = array\['search_path=pg_catalog'\][\s\S]+?p\.prosrc = v_expected_body/i, 'An existing RLS event function must match its verified security settings and body.')
+const expectedRlsBody = hardeningMigration.match(/v_expected_body constant text := \$body\$([\s\S]*?)\$body\$;/)?.[1]
+assert.ok(expectedRlsBody, 'The verified RLS event function body must be pinned in migration 004.')
+assert.equal(createHash('sha256').update(expectedRlsBody).digest('hex'), '325ae266d9b166715ef5230ceaf7ff9d523e483cf5610dfb9779ab3f183f4af9', 'The pinned RLS event body must match the inspected staging definition.')
+assert.match(hardeningMigration, /select \* into v_trigger[\s\S]+?v_trigger\.evtenabled <> 'O'[\s\S]+?v_trigger\.evttags is distinct from array\['CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO'\]/i, 'An existing RLS event trigger must be enabled and match the verified tags.')
+assert.match(hardeningMigration, /raise exception '[^']*unexpected definition/i, 'Unexpected homonymous RLS objects must fail closed.')
+assert.doesNotMatch(hardeningMigration, /\b(drop|grant|cascade)\b/i, 'RLS event migration must not drop objects, add grants, or cascade dependencies.')
+assert.match(hardeningMigration, /if v_function is null[\s\S]+?ensure_rls exists without public\.rls_auto_enable/i, 'Function and trigger presence must be checked together without provisioning privileged objects.')
+assert.match(triggerCheckMigration, /from pg_class[\s\S]+?not c\.relrowsecurity/i, 'Migration 005 must verify RLS directly on public tables without creating a probe table.')
+assert.doesNotMatch(triggerCheckMigration, /\b(create|drop) table\b/i, 'Migration 005 must not create or drop a database object.')
 for (const name of ['start_or_resume_date_session','save_date_response','generate_date_recommendations','vote_date_recommendation','confirm_date_recommendation','close_date_session']) {
   assert.match(planningMigration, new RegExp(`create or replace function public\\.${name}\\([\\s\\S]*?set search_path = ''`, 'i'), `${name} must pin its SECURITY DEFINER search path`)
   assert.match(planningMigration, new RegExp(`revoke all on function[\\s\\S]*?public\\.${name}\\(`, 'i'), `${name} must not inherit PUBLIC/anon execution`)
@@ -49,7 +58,17 @@ for (const fn of ['start_date_experience', 'update_date_experience_step', 'set_d
   assert.match(experienceMigration, new RegExp(`public\\.${fn}\\([\\s\\S]*?from public, anon`, 'i'), `${fn} must revoke PUBLIC and anon execution`)
 }
 assert.match(experienceMigration, /auth\.uid\(\)/i, 'Experience RPCs must bind changes to an authenticated participant')
-assert.match(experienceMigration, /if exists \(select 1 from public\.ai_generations limit 1\)[\s\S]+?drop table public\.ai_generations/i, 'The unused AI table may only be removed when it is empty')
+assert.doesNotMatch(experienceMigration, /drop table\s+(?:if exists\s+)?public\.ai_generations/i, 'The experience migration must preserve the legacy AI table and its data')
+for (const [file, migration] of [
+  ['phase2 planning', planningMigration],
+  ['date experience', experienceMigration],
+  ['private memory album', memoriesMigration],
+]) {
+  const createdTables = [...migration.matchAll(/^create table public\.(\w+)/gim)].map((match) => match[1])
+  for (const table of createdTables) {
+    assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`, 'i'), `${file}: ${table} must enable RLS in its creating migration`)
+  }
+}
 assert.match(memoriesMigration, /create table public\.date_memory_contributions[\s\S]+?enable row level security/i, 'Memory contributions must have RLS.')
 assert.match(memoriesMigration, /date_memory_contributions_insert_owner[\s\S]+?user_id = \(select auth\.uid\(\)\)/i, 'Shared contributions must retain their author.')
 assert.match(memoriesMigration, /create policy memory_album_select_member[\s\S]+?public\.is_couple_member/i, 'Private storage reads must be limited to couple members.')

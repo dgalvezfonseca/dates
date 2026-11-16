@@ -1,0 +1,7 @@
+# Keep LF in every checkout, including Git for Windows with core.autocrlf=true.
+# Migration 202611030004 compares an embedded function body byte-for-byte against pg_proc.prosrc
+# (and scripts/check-rls.mjs pins its SHA-256); CRLF would make that migration fail on deploy.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary

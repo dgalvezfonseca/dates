@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Clock3, LoaderCircle, MapPin, Pause, RefreshCw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Json } from '../lib/database.types'
+import { planningErrorMessage } from '../lib/planningErrorMessage.mjs'
 import { supabase } from '../lib/supabase'
 
 type Answer = { activity?: string; mood?: string; time?: string; setting?: string; discover?: string; avoid?: string[] }
@@ -36,6 +37,7 @@ export default function DatePlanningPage({ coupleId, userId }: { coupleId: strin
   const hydratedSession = useRef('')
   const answerRef = useRef<Answer>({})
   const draftQueue = useRef<Promise<void>>(Promise.resolve())
+  const phaseRef = useRef('')
 
   const refresh = useCallback(async () => {
     if (!supabase) return
@@ -89,6 +91,10 @@ export default function DatePlanningPage({ coupleId, userId }: { coupleId: strin
       return [{ ...date, ...rec, id: rec.id, date_id: rec.date_id, prompts: Array.isArray(rec.prompts) ? rec.prompts.filter((item): item is string => typeof item === 'string') : [] }]
     })
     setRecommendations(parsed)
+    // A notice describes the phase in which it was shown; drop it once the other phone moves the shared state on.
+    const phase = `${sessionRow.id}|${sessionRow.status}|${mySubmitted}|${partnerDone}|${parsed.length}`
+    if (phaseRef.current && phaseRef.current !== phase) setNotice('')
+    phaseRef.current = phase
     setVotes(currentVotes.data ?? []); setConfirmations(accepted.data ?? [])
     setMyVote((currentVotes.data ?? []).find((vote) => vote.user_id === userId)?.recommendation_id ?? '')
     if (mySubmitted && partnerDone && parsed.length === 0 && sessionRow.status !== 'confirmed') {
@@ -100,10 +106,10 @@ export default function DatePlanningPage({ coupleId, userId }: { coupleId: strin
 
   useEffect(() => {
     let active = true
-    async function initial() { try { await refresh() } catch (e) { if (active) setError((e as Error).message) } finally { if (active) setLoading(false) } }
+    async function initial() { try { await refresh() } catch (e) { if (active) setError(planningErrorMessage(e)) } finally { if (active) setLoading(false) } }
     void initial()
-    const timer = window.setInterval(() => { void refresh().catch((e) => setError((e as Error).message)) }, 5000)
-    const channel = supabase?.channel(`planning-${coupleId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'date_response_status' }, () => { void refresh().catch((e) => setError((e as Error).message)) }).on('postgres_changes', { event: '*', schema: 'public', table: 'date_votes' }, () => { void refresh().catch((e) => setError((e as Error).message)) }).subscribe()
+    const timer = window.setInterval(() => { void refresh().catch((e) => setError(planningErrorMessage(e))) }, 5000)
+    const channel = supabase?.channel(`planning-${coupleId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'date_response_status' }, () => { void refresh().catch((e) => setError(planningErrorMessage(e))) }).on('postgres_changes', { event: '*', schema: 'public', table: 'date_votes' }, () => { void refresh().catch((e) => setError(planningErrorMessage(e))) }).subscribe()
     return () => { active = false; window.clearInterval(timer); if (channel) void supabase?.removeChannel(channel) }
   }, [refresh,coupleId])
 
@@ -112,18 +118,20 @@ export default function DatePlanningPage({ coupleId, userId }: { coupleId: strin
     setBusy(true); setError(''); setNotice('')
     try {
       await draftQueue.current
-      const { error: saveError } = await supabase.rpc('save_date_response', { p_session_id: session.id, p_answers: answerRef.current as Json, p_submit: submit })
-      if (saveError) { setError(saveError.message); return false }
-      if (submit) setNotice('Tus respuestas están listas. Se mantienen privadas mientras esperamos a la otra persona.')
+      const { data: saved, error: saveError } = await supabase.rpc('save_date_response', { p_session_id: session.id, p_answers: answerRef.current as Json, p_submit: submit })
+      if (saveError) { setError(planningErrorMessage(saveError)); return false }
       await refresh()
+      // Set notices after refresh: refresh clears notices whenever the shared phase changes.
+      const partnerAlreadySubmitted = !!(saved as { partner_submitted?: boolean } | null)?.partner_submitted
+      if (submit && !partnerAlreadySubmitted) setNotice('Tus respuestas están listas. Se mantienen privadas mientras esperamos a la otra persona.')
       return true
-    } catch (e) { setError((e as Error).message); return false }
+    } catch (e) { setError(planningErrorMessage(e)); return false }
     finally { setBusy(false) }
   }
   async function next() { if (step === questions.length) { await save(true); return } if (await save(false)) setStep((value) => value + 1) }
-  async function vote(id: string) { if (!supabase || !session) return; setBusy(true); const result = await supabase.rpc('vote_date_recommendation',{p_session_id:session.id,p_recommendation_id:id}); if (result.error) setError(result.error.message); else await refresh(); setBusy(false) }
-  async function confirm() { if (!supabase || !session) return; setBusy(true); setError(''); const result = await supabase.rpc('confirm_date_recommendation',{p_session_id:session.id}); if (result.error) setError(result.error.message); else { setNotice(result.data ? 'La cita quedó confirmada por ambos.' : 'Tu aceptación quedó guardada. Falta la de la otra persona.'); await refresh() } setBusy(false) }
-  async function close(status: 'postponed'|'cancelled') { if (!supabase || !session) return; setBusy(true); const result = await supabase.rpc('close_date_session',{p_session_id:session.id,p_status:status}); if (result.error) setError(result.error.message); else { setNotice(status==='postponed'?'Lo dejan para otro momento.':'La planificación quedó cancelada, sin penalizaciones.'); await refresh() } setBusy(false) }
+  async function vote(id: string) { if (!supabase || !session) return; setBusy(true); const result = await supabase.rpc('vote_date_recommendation',{p_session_id:session.id,p_recommendation_id:id}); if (result.error) setError(planningErrorMessage(result.error)); else await refresh(); setBusy(false) }
+  async function confirm() { if (!supabase || !session) return; setBusy(true); setError(''); const result = await supabase.rpc('confirm_date_recommendation',{p_session_id:session.id}); if (result.error) setError(planningErrorMessage(result.error)); else { await refresh(); setNotice(result.data ? 'La cita quedó confirmada por ambos.' : 'Tu aceptación quedó guardada. Falta la de la otra persona.') } setBusy(false) }
+  async function close(status: 'postponed'|'cancelled') { if (!supabase || !session) return; setBusy(true); const result = await supabase.rpc('close_date_session',{p_session_id:session.id,p_status:status}); if (result.error) setError(planningErrorMessage(result.error)); else { await refresh(); setNotice(status==='postponed'?'Lo dejan para otro momento.':'La planificación quedó cancelada, sin penalizaciones.') } setBusy(false) }
   function changeAnswer(update: (current: Answer) => Answer) {
     const nextAnswer = update(answerRef.current)
     answerRef.current = nextAnswer
@@ -134,11 +142,11 @@ export default function DatePlanningPage({ coupleId, userId }: { coupleId: strin
       if (saveError) throw saveError
     })
     draftQueue.current = write
-    void write.then(() => setError('')).catch((e) => setError((e as Error).message))
+    void write.then(() => setError('')).catch((e) => setError(planningErrorMessage(e)))
   }
 
   if (loading) return <main className="center-page"><LoaderCircle className="spin loading-icon" size={26} /><p className="muted">Preparando el cuestionario…</p></main>
-  if (error && !session) return <main className="center-page"><section className="setup-card"><p className="eyebrow">Planear juntos</p><h1>No logramos abrir el test.</h1><p className="form-error" role="alert">{error}</p><button className="button primary full" onClick={() => { setError(''); setLoading(true); void refresh().catch((e) => setError((e as Error).message)).finally(() => setLoading(false)) }}>Reintentar</button></section></main>
+  if (error && !session) return <main className="center-page"><section className="setup-card"><p className="eyebrow">Planear juntos</p><h1>No logramos abrir el test.</h1><p className="form-error" role="alert">{error}</p><button className="button primary full" onClick={() => { setError(''); setLoading(true); void refresh().catch((e) => setError(planningErrorMessage(e))).finally(() => setLoading(false)) }}>Reintentar</button></section></main>
   const own = votes.find((vote) => vote.user_id === userId)
   const partnerVote = votes.find((vote) => vote.user_id !== userId)
   const myAcceptance = confirmations.some((item) => item.user_id === userId)
