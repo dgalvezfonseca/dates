@@ -1,4 +1,4 @@
-# dates — 100 veces tú y yo
+# dates — 100 citas tú y yo
 
 Aplicación privada para dos personas. **Sin prisas, a nuestra manera.** Este repositorio es independiente y no reutiliza archivos de Webmo.
 

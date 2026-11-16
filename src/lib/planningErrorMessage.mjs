@@ -10,13 +10,13 @@ export function planningErrorMessage(error) {
     return 'No pudimos conectar. Revisa tu conexión; lo que ya guardaste sigue a salvo.'
   }
   if (/not enough activities/.test(message)) {
-    return 'Con las actividades que prefieren evitar no quedan tres propuestas. Pospongan y respondan de nuevo con menos restricciones.'
+    return 'Con las actividades que preferimos evitar no quedan tres propuestas. Pospongamos y respondamos de nuevo con menos restricciones.'
   }
-  if (/both participants must choose the same/.test(message)) return 'Ambos deben elegir la misma propuesta antes de confirmar.'
+  if (/both participants must choose the same/.test(message)) return 'Los dos tenemos que elegir la misma propuesta antes de confirmar.'
   if (/vote before confirming/.test(message)) return 'Elige una propuesta antes de confirmar.'
   if (/both participants must submit|bilateral confirmation required/.test(message)) return 'Falta que la otra persona complete su parte.'
   if (/wait for your turn/.test(message)) return 'Ahora es el turno de la otra persona.'
-  if (/two participants/.test(message)) return 'El círculo necesita a sus dos integrantes para continuar.'
+  if (/two participants/.test(message)) return 'Para continuar necesitamos estar los dos en el círculo.'
   if (/session is unavailable|not open for|cannot be changed|state changed|has not started|not confirmed|experience is unavailable|incomplete recommendation set/.test(message)) {
     return 'La cita cambió desde el otro teléfono. Ya actualizamos la pantalla; revisa el estado actual.'
   }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, Copy, LoaderCircle, Share2, ShieldCheck, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { APP_NAME } from '../lib/brand'
 import { coupleErrorMessage } from '../lib/coupleErrorMessage'
 import { supabase } from '../lib/supabase'
 
@@ -47,7 +48,7 @@ export default function CouplePage({ role, memberCount }: { role: string; member
 
   async function shareInvite() {
     const appUrl = new URL(import.meta.env.BASE_URL, window.location.origin).href
-    const text = `Te invito a nuestro círculo en 100 veces tú y yo. Abre la app e ingresa este código: ${code}`
+    const text = `Te invito a nuestro círculo en ${APP_NAME}. Abre la app e ingresa este código: ${code}`
     const share = Reflect.get(navigator, 'share') as ((data: ShareData) => Promise<void>) | undefined
     try {
       if (share) await share.call(navigator, { title: 'Invitación a nuestro círculo', text, url: appUrl })
@@ -62,13 +63,13 @@ export default function CouplePage({ role, memberCount }: { role: string; member
   }
 
   return <div className="page-wrap circle-page">
-    <header className="catalog-heading circle-heading"><div><p className="eyebrow">Un espacio privado para dos</p><h1>Nuestro círculo</h1><p className="muted">Su pequeño lugar para encontrarse, sin prisas.</p></div><span className="circle-count"><UsersRound size={18} />{memberCount} de 2 integrantes</span></header>
+    <header className="catalog-heading circle-heading"><div><p className="eyebrow">Un espacio privado para dos</p><h1>Nuestro círculo</h1><p className="muted">Nuestro pequeño lugar para encontrarnos, sin prisas.</p></div><span className="circle-count"><UsersRound size={18} />{memberCount} de 2 integrantes</span></header>
 
     <section className="circle-panel" aria-live="polite">
       <span className="circle-seal"><ShieldCheck size={22} /></span>
-      <p className="eyebrow">{memberCount === 2 ? 'VINCULACIÓN COMPLETA' : 'ESPERANDO A LA OTRA PERSONA'}</p>
-      <h2>{memberCount === 2 ? 'Ya están en el mismo círculo.' : 'Tu círculo ya está creado.'}</h2>
-      <p className="muted">{memberCount === 2 ? 'La invitación quedó aceptada. Ambos pueden continuar con el cuestionario desde sus celulares.' : 'Comparte una invitación para que la otra persona se una. Solo se permiten dos integrantes.'}</p>
+      <p className="eyebrow">{memberCount === 2 ? 'YA ESTAMOS LOS DOS' : 'ESPERANDO A LA OTRA PERSONA'}</p>
+      <h2>{memberCount === 2 ? 'Ya estamos en el mismo círculo.' : 'Nuestro círculo ya está creado.'}</h2>
+      <p className="muted">{memberCount === 2 ? 'La invitación quedó aceptada. Cada quien puede responder el cuestionario desde su celular.' : 'Comparte la invitación para que podamos empezar. Aquí solo caben dos personas.'}</p>
       {memberCount === 2 ? <Link className="button primary" to="/planear">Empezar el cuestionario <ArrowRight size={17} /></Link>
         : role === 'owner' && memberCount === 1 ? <div className="circle-invite-actions">
           {!code ? <button className="button primary" disabled={busy} onClick={() => void createInvite()}>{busy ? <LoaderCircle className="spin" size={18} /> : <ShieldCheck size={18} />}Generar invitación</button> : <>
@@ -77,7 +78,7 @@ export default function CouplePage({ role, memberCount }: { role: string; member
             <button className="button secondary" disabled={busy} onClick={() => void createInvite()}>{busy ? <LoaderCircle className="spin" size={18} /> : <Copy size={17} />}Generar otra invitación</button>
             <p className="field-help">Generar otra no invalida los códigos anteriores; cada uno vence por separado. El código no se puede recuperar al cerrar esta pantalla.</p>
           </>}
-        </div> : <p className="form-error" role="status">El círculo todavía no muestra exactamente dos integrantes. Actualiza en unos segundos o contacta soporte.</p>}
+        </div> : <p className="form-error" role="status">Todavía no aparecemos los dos en el círculo. Actualiza en unos segundos.</p>}
       {error && <p className="form-error circle-feedback" role="alert">{error}</p>}{notice && <p className="form-success circle-feedback" role="status"><Check size={15} />{notice}</p>}
     </section>
   </div>
