@@ -9,6 +9,7 @@ import { filterDates } from './lib/filterDates.mjs'
 import { normalizeInviteCode } from './lib/inviteCode.mjs'
 import { categories } from './lib/categories'
 import { APP_NAME } from './lib/brand'
+import { authErrorMessage, authRedirectUrl } from './lib/authErrorMessage.mjs'
 
 
 const AnimatedRoute = lazy(() => import('./components/AnimatedRoute'))
@@ -36,9 +37,13 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Supabase emits SIGNED_IN with a fresh session object every time the tab becomes visible again
+  // (e.g. returning from WhatsApp after sharing the invite). Keying on the user id keeps the shell
+  // mounted, so open screens keep their state; only a real account change reloads the circle.
+  const userId = session?.user?.id ?? null
   useEffect(() => {
     let active = true
-    if (!supabase || !session?.user) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
+    if (!supabase || !userId) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
     setGroupReady(false)
     setMemberCount(null)
     let coupleId: string | null = null
@@ -48,7 +53,7 @@ export default function App() {
       if (active && !error) setMemberCount(count ?? 0)
     }
     const timer = window.setInterval(() => { void refreshCount() }, 4000)
-    supabase!.from('couple_members').select('couple_id, role').eq('user_id', session.user.id).maybeSingle()
+    supabase!.from('couple_members').select('couple_id, role').eq('user_id', userId).maybeSingle()
       .then(async ({ data, error }) => {
         if (!active) return
         coupleId = data?.couple_id ?? null
@@ -63,7 +68,7 @@ export default function App() {
         setGroupReady(true)
       })
     return () => { active = false; window.clearInterval(timer) }
-  }, [session])
+  }, [userId])
 
   if (!supabase) return <SetupScreen />
   if (!authReady || (session && !groupReady)) return <LoadingScreen />
@@ -92,8 +97,8 @@ function AuthScreen() {
     if (!supabase) return
     const result = mode === 'login'
       ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({ email: email.trim(), password })
-    if (result.error) setError(result.error.message)
+      : await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: authRedirectUrl(window.location.origin, import.meta.env.BASE_URL) } })
+    if (result.error) setError(authErrorMessage(result.error))
     else if (mode === 'signup' && !result.data.session) setMessage('Revisa tu correo para confirmar la cuenta y después inicia sesión.')
     setBusy(false)
   }
