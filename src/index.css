@@ -52,7 +52,7 @@ h1 { margin-bottom: 12px; color: var(--color-wine); font-family: var(--font-disp
 .button.light { background: #fffaf5; color: var(--color-wine); }
 .button.full { width: 100%; }
 .text-button { border: 0; background: transparent; color: var(--color-wine); font-size: 12px; font-weight: 600; }
-.auth-toggle { margin-top: 20px; }
+.auth-toggle { min-height: 44px; margin-top: 12px; padding: 0 8px; }
 .form-error, .form-success { margin: 0; font-size: 12px; line-height: 1.5; }
 .form-error { color: #a34545; }.form-success { color: #526a4c; }
 .privacy-note { display: flex; justify-content: center; align-items: center; gap: 7px; margin: 25px 0 0; color: #898078; font-size: 11px; }
@@ -320,3 +320,16 @@ h1 { margin-bottom: 12px; color: var(--color-wine); font-family: var(--font-disp
   .home-ticket-stub::before { top: -11px; bottom: auto; clip-path: inset(50% 0 0 0); }
   .home-ticket-stub::after { top: auto; bottom: -11px; clip-path: inset(0 0 50% 0); }
 }
+
+/* Joining with a code: in the pairing card, and on «Círculo» while the owner is still alone. */
+.join-circle-form { gap: 10px; margin-top: 4px; }
+.pairing-card .pairing-choice .join-circle-form { margin-top: 4px; }
+.join-circle-form .button { min-height: 48px; }
+.join-circle-form .form-error, .pairing-choice .join-circle-form .form-error { margin-top: 2px; color: #a34545; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.circle-join-alt { max-width: 680px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; margin: 0 auto 28px; padding: clamp(18px, 4vw, 28px); border: 1px dashed #d6c2b8; border-radius: 3px; background: #fbf6f1; }
+.circle-join-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: #f4e9e5; color: var(--color-wine); }
+.circle-join-copy .eyebrow { margin-bottom: 6px; color: #8a5252; }
+.circle-join-copy h2 { margin: 0 0 8px; color: var(--color-wine); font-family: var(--font-display); font-size: clamp(25px, 6vw, 30px); font-weight: 500; line-height: 1.08; }
+.circle-join-copy > .muted { max-width: 34em; margin: 0 0 6px; color: #5f5751; font-size: 14px; line-height: 1.6; }
+.circle-join-copy .join-circle-form { max-width: 390px; margin-top: 12px; }
+@media (max-width: 430px) { .circle-join-alt { grid-template-columns: 1fr; gap: 10px; } }

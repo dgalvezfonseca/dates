@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, Copy, LoaderCircle, Share2, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, Check, Copy, KeyRound, LoaderCircle, Share2, ShieldCheck, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { APP_NAME } from '../lib/brand'
+import JoinCircleForm from './JoinCircleForm'
 import { coupleErrorMessage } from '../lib/coupleErrorMessage'
 import { supabase } from '../lib/supabase'
 
@@ -81,5 +82,17 @@ export default function CouplePage({ role, memberCount }: { role: string; member
         </div> : <p className="form-error" role="status">Todavía no aparecemos los dos en el círculo. Actualiza en unos segundos.</p>}
       {error && <p className="form-error circle-feedback" role="alert">{error}</p>}{notice && <p className="form-success circle-feedback" role="status"><Check size={15} />{notice}</p>}
     </section>
+
+    {/* While we are still 1 of 2, the owner may have received the other person's code instead
+        (both created a circle). The server only allows it if this circle has no shared activity. */}
+    {role === 'owner' && memberCount === 1 && <section className="circle-join-alt" aria-labelledby="circle-join-title">
+      <span className="circle-join-icon" aria-hidden="true"><KeyRound size={19} /></span>
+      <div className="circle-join-copy">
+        <p className="eyebrow">¿Ya tienes un código?</p>
+        <h2 id="circle-join-title">La otra persona también creó un círculo</h2>
+        <p className="muted">Si te compartió su código, úsalo aquí. Cerramos este círculo vacío y quedamos juntos en el suyo; tus favoritos y notas privadas se vienen contigo.</p>
+        <JoinCircleForm id="circle-join-invite" label="Código de invitación" help="Puedes pegar el mensaje completo de WhatsApp. Solo funciona mientras aquí sigas tú solo." />
+      </div>
+    </section>}
   </div>
 }
