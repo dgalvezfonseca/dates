@@ -1,4 +1,4 @@
-import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, LoaderCircle, LogOut, Search, ShieldCheck, Sparkles, UsersRound, X } from 'lucide-react'
+import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, LoaderCircle, LogOut, Search, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
@@ -150,11 +150,15 @@ function Navigation() {
 }
 
 function HomePage({ email, role, coupleId, memberCount }: { email: string; role: string; coupleId: string; memberCount: number }) {
-  return <div className="page-wrap"><div className="page-heading"><div><p className="eyebrow">Un lugar para encontrarnos de nuevo</p><h1>Hola, qué bueno<br className="mobile-break" /> tenerte por aquí.</h1><p className="muted">No tengamos prisa, conozcámonos de nuevo y disfrutemos la experiencia.</p></div><OurPhoto /></div>
-    <section className="welcome-panel"><div className="welcome-copy"><span className="tiny-label"><Sparkles size={14} /> A NUESTRO PROPIO RITMO</span><h2>Lo bonito está<br />en seguir descubriéndonos.</h2><p>Una buena conversación, algo nuevo por probar o simplemente disfrutar el momento juntos.</p><Link to="/planear" className="button light">Preparemos nuestra próxima cita <ArrowRight size={17} /></Link></div><div className="welcome-orbit"><div className="orbit-ring" /><div className="orbit-core"><Heart size={33} strokeWidth={1.3} /></div><span className="orbit-dot dot-one" /><span className="orbit-dot dot-two" /></div></section>
-    <div className="section-title-row"><div><p className="eyebrow">EL COMIENZO</p><h2>Nuestro espacio</h2></div><span className="private-chip"><ShieldCheck size={14} /> Solo nosotros</span></div>
-    <div className="home-grid"><NextDateCard coupleId={coupleId} /><UniqueProgress coupleId={coupleId} /><article className="info-card"><div className="card-icon rose"><Flower2 size={20} /></div><p className="card-kicker">100 CITAS</p><h3>Las citas que nos esperan</h3><p className="muted small">Seis maneras distintas de pasar tiempo juntos, sin convertirlo en una obligación.</p><Link to="/citas" className="inline-link">Ver catálogo <ChevronRight size={16} /></Link></article><article className="info-card soft-sage"><div className="card-icon sage"><UsersRound size={20} /></div><p className="card-kicker">NUESTRO CÍRCULO</p><h3>{memberCount} de 2 integrantes</h3><p className="muted small">{memberCount === 2 ? 'Nuestro espacio ya está listo para empezar.' : 'Comparte la invitación para que estemos los dos.'}</p><span className="status-line"><Check size={15} /> {role === 'owner' ? 'Creado por ti' : 'Te uniste a este espacio'}</span><Link to="/circulo" className="inline-link circle-card-link">Ver círculo <ChevronRight size={16} /></Link></article></div>
-    <footer className="page-footer">Una invitación, nunca una obligación. <span>·</span> Sesión de {email}</footer></div>
+  return <div className="page-wrap home-page">
+    <header className="home-intro"><div className="home-intro-copy"><p className="eyebrow">Un lugar para encontrarnos de nuevo</p><h1>Hola, qué bueno tenerte por aquí.</h1></div><OurPhoto /><p className="home-intro-lead">No tengamos prisa, conozcámonos de nuevo y disfrutemos la experiencia.</p></header>
+    <section className="home-cover" aria-labelledby="home-cover-title"><span className="home-cover-emboss" aria-hidden="true">100</span><div className="home-cover-copy"><p className="home-cover-label">A NUESTRO PROPIO RITMO</p><h2 id="home-cover-title">Lo bonito está<br />en seguir descubriéndonos.</h2><p>Una buena conversación, algo nuevo por probar o simplemente disfrutar el momento juntos.</p><Link to="/planear" className="button light home-cover-cta">Preparemos nuestra próxima cita <ArrowRight size={17} /></Link></div><span className="home-cover-band" aria-hidden="true" /></section>
+    <div className="home-section-head"><div><p className="eyebrow">EL COMIENZO</p><h2>Nuestro espacio</h2></div><span className="home-private"><ShieldCheck size={14} /> Solo nosotros</span></div>
+    <div className="home-pages"><NextDateCard coupleId={coupleId} /><UniqueProgress coupleId={coupleId} />
+      <article className="home-card home-index"><p className="home-kicker"><Flower2 size={14} /> 100 CITAS</p><h3>Las citas que nos esperan</h3><p className="home-note">Seis maneras distintas de pasar tiempo juntos, sin convertirlo en una obligación.</p><Link to="/citas" className="home-link">Ver catálogo <ChevronRight size={16} /></Link></article>
+      <article className="home-card home-stamp"><div className={`home-stamp-seal${memberCount === 2 ? ' complete' : ''}`} aria-hidden="true"><span /><span /></div><div className="home-stamp-body"><p className="home-kicker">NUESTRO CÍRCULO</p><h3>{memberCount} de 2 integrantes</h3><p className="home-note">{memberCount === 2 ? 'Nuestro espacio ya está listo para empezar.' : 'Comparte la invitación para que estemos los dos.'}</p><span className="status-line"><Check size={15} /> {role === 'owner' ? 'Creado por ti' : 'Te uniste a este espacio'}</span><Link to="/circulo" className="home-link">Ver círculo <ChevronRight size={16} /></Link></div></article>
+    </div>
+    <footer className="home-footer">Una invitación, nunca una obligación. <span aria-hidden="true">·</span> Sesión de {email}</footer></div>
 }
 
 function NextDateCard({ coupleId }: { coupleId: string }) {
@@ -173,7 +177,7 @@ function NextDateCard({ coupleId }: { coupleId: string }) {
     void load()
     return () => { active = false }
   }, [coupleId])
-  return <article className="info-card soft-sage"><div className="card-icon sage"><Check size={20} /></div><p className="card-kicker">PRÓXIMA CITA</p><h3>{title}</h3><p className="muted small">Nuestra próxima cita aparecerá aquí cuando los dos la confirmemos.</p><Link to={modeAvailable ? '/cita' : '/planear'} className="inline-link">{modeAvailable ? 'Continuar modo cita' : 'Planear nuestra cita'} <ChevronRight size={16} /></Link></article>
+  return <article className="home-card home-ticket"><div className="home-ticket-main"><p className="home-kicker"><Check size={14} /> PRÓXIMA CITA</p><h3>{title}</h3><p className="home-note">Nuestra próxima cita aparecerá aquí cuando los dos la confirmemos.</p></div><div className="home-ticket-stub"><Link to={modeAvailable ? '/cita' : '/planear'} className="home-link">{modeAvailable ? 'Continuar modo cita' : 'Planear nuestra cita'} <ChevronRight size={16} /></Link></div></article>
 }
 
 function UniqueProgress({ coupleId }: { coupleId: string }) {
@@ -184,7 +188,9 @@ function UniqueProgress({ coupleId }: { coupleId: string }) {
       .then(({ data, error }) => { if (active && !error) setCount(new Set((data ?? []).map((item) => item.selected_date_id).filter(Boolean)).size) })
     return () => { active = false }
   }, [coupleId])
-  return <article className="info-card progress-card"><div className="card-icon rose"><BookHeart size={20} /></div><p className="card-kicker">CITAS QUE YA VIVIMOS</p><h3>{count === null ? '—' : `${count} de 100`}</h3><div className="progress-track" aria-label={`${count ?? 0} de 100 citas que ya vivimos`}><span style={{ width: `${Math.min(count ?? 0, 100)}%` }} /></div><Link to="/recuerdos" className="inline-link">Ver nuestros recuerdos <ChevronRight size={16} /></Link></article>
+  // One square per date in the catalog: a bullet-journal tally of the dates we already lived.
+  const lived = Math.min(count ?? 0, 100)
+  return <article className="home-card home-tally"><p className="home-kicker"><BookHeart size={14} /> CITAS QUE YA VIVIMOS</p><h3>{count === null ? '—' : `${count} de 100`}</h3><div className="home-tally-grid" role="img" aria-label={`${count ?? 0} de 100 citas que ya vivimos`}>{Array.from({ length: 100 }, (_, index) => <span key={index} className={index < lived ? 'lived' : undefined} />)}</div><Link to="/recuerdos" className="home-link">Ver nuestros recuerdos <ChevronRight size={16} /></Link></article>
 }
 
 function CatalogPage({ coupleId }: { coupleId: string }) {
