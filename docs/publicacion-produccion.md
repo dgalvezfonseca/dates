@@ -1,6 +1,20 @@
 # Publicación en producción — estado y operaciones pendientes
 
-Fecha: 17 de noviembre de 2026. Rama: `feat/home-diario`. Nada de lo siguiente se ha ejecutado en producción.
+Fecha: 17 de noviembre de 2026. Rama: `feat/home-diario`.
+
+## Migraciones aplicadas (17 nov 2026, con autorización)
+
+Tras repetir el dry-run (mismo destino y misma lista), se ejecutó `npx supabase db push --remote=etqnmmrhfggcqzqefvjh`. Las ocho migraciones se aplicaron sin errores. Verificación de solo lectura posterior:
+
+- Historial: 11/11 versiones registradas.
+- 21 tablas públicas, todas con RLS; `ai_generations` se conserva.
+- 17 RPC del frontend presentes; ninguna función `SECURITY DEFINER` ejecutable por `anon`.
+- Bucket `memory-album-private`: privado, 3 MB, JPEG/PNG/WebP; políticas `memory_album_select_member`, `memory_album_insert_owner`, `memory_album_delete_owner`.
+- `authenticated` solo tiene SELECT en `date_sessions`, `date_responses`, `date_votes`, `date_confirmations`, `date_memories` y `memory_photos` (las escrituras pasan por RPC); `date_memory_contributions` admite escritura del autor bajo RLS.
+- Realtime: `date_experience_progress`, `date_experience_confirmations`, `date_memories`, `date_memory_contributions`, `memory_photos`.
+- Datos previos intactos: 4 usuarios Auth, 2 círculos, 2 integrantes, 100 citas.
+
+Las secciones siguientes describen el estado previo al despliegue y las operaciones aún pendientes (pasos 1 y 3–6).
 
 ## Estado verificado (solo lectura)
 
