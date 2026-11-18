@@ -1,4 +1,4 @@
-param([ValidateSet('setup','cleanup','list-qa-mobile','experience','memories','browser-fixture','ui-fixture')][string]$Action)
+param([ValidateSet('setup','cleanup','list-qa-mobile','experience','memories','browser-fixture','ui-fixture','circle-join')][string]$Action)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $projectRef = 'uyhavkmjvfaeoapzoobh'
@@ -19,6 +19,7 @@ try {
   elseif ($Action -eq 'memories') { & node scripts/staging-memories-smoke.mjs }
   elseif ($Action -eq 'browser-fixture') { & node scripts/staging-memories-browser-fixture.mjs }
   elseif ($Action -eq 'ui-fixture') { & node scripts/staging-ui-pairing-fixture.mjs }
+  elseif ($Action -eq 'circle-join') { & node scripts/staging-circle-join-smoke.mjs }
   else { & node scripts/staging-mobile-users.mjs $Action }
   if ($LASTEXITCODE -ne 0) { throw 'The staging mobile account operation failed.' }
 } finally {

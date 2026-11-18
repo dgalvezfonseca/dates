@@ -3,6 +3,8 @@ import { ArrowRight, Check, Copy, LoaderCircle, Share2, ShieldCheck, UsersRound 
 import { Link } from 'react-router-dom'
 import { APP_NAME } from '../lib/brand'
 import { coupleErrorMessage } from '../lib/coupleErrorMessage'
+import { canJoinWithCode } from '../lib/joinCircle.mjs'
+import JoinCircleForm from './JoinCircleForm'
 import { supabase } from '../lib/supabase'
 
 export default function CouplePage({ role, memberCount }: { role: string; memberCount: number }) {
@@ -80,6 +82,12 @@ export default function CouplePage({ role, memberCount }: { role: string; member
           </>}
         </div> : <p className="form-error" role="status">Todavía no aparecemos los dos en el círculo. Actualiza en unos segundos.</p>}
       {error && <p className="form-error circle-feedback" role="alert">{error}</p>}{notice && <p className="form-success circle-feedback" role="status"><Check size={15} />{notice}</p>}
+      {/* Both people may have created a circle: while we are 1 of 2, the owner can still join the other one. */}
+      {canJoinWithCode({ hasCircle: true, role, memberCount }) && <div className="circle-join" role="group" aria-labelledby="circle-join-title">
+        <h3 id="circle-join-title">¿Ya tienes un código?</h3>
+        <p className="muted">Si la otra persona ya creó su círculo, peguemos aquí su código para unirnos.</p>
+        <JoinCircleForm id="circle-join-invite" label="Código de invitación" help="Puedes pegar el mensaje completo de WhatsApp. Cerramos este círculo vacío y nos unimos al suyo." button="Unirnos con este código" />
+      </div>}
     </section>
   </div>
 }

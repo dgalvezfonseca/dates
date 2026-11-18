@@ -1,4 +1,4 @@
-import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, LoaderCircle, LogOut, Search, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, KeyRound, LoaderCircle, LogOut, Search, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
@@ -6,7 +6,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { coupleErrorMessage } from './lib/coupleErrorMessage'
 import { filterDates } from './lib/filterDates.mjs'
-import { normalizeInviteCode } from './lib/inviteCode.mjs'
+import JoinCircleForm, { openCircle } from './components/JoinCircleForm'
 import { categories } from './lib/categories'
 import { APP_NAME } from './lib/brand'
 import { authErrorMessage, authRedirectUrl } from './lib/authErrorMessage.mjs'
@@ -110,37 +110,27 @@ function AuthScreen() {
 }
 
 function PairingScreen({ email, onSignOut }: { email: string; onSignOut: () => void }) {
-  const [invite, setInvite] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  function openCircle(message: string) {
-    sessionStorage.setItem('circle-notice', message)
-    window.location.assign(new URL('circulo', new URL(import.meta.env.BASE_URL, window.location.origin)).href)
-  }
   async function createSpace() {
+    if (busy) return
     setBusy(true); setError('')
     try {
       const { error: createError } = await supabase!.rpc('create_couple')
       if (createError) setError(coupleErrorMessage(createError))
-      else openCircle('Nuestro círculo está creado. Por ahora somos 1 de 2.')
+      else { openCircle('Nuestro círculo está creado. Por ahora somos 1 de 2.'); return }
     } catch (e) { setError(coupleErrorMessage(e)) }
-    finally { setBusy(false) }
-  }
-  async function acceptInvite(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError('')
-    try {
-      const { error: acceptError } = await supabase!.rpc('accept_couple_invite', { p_token: invite.trim() })
-      if (acceptError) setError(coupleErrorMessage(acceptError))
-      else openCircle('Listo, ya estamos en el mismo círculo.')
-    } catch (e) { setError(coupleErrorMessage(e)) }
-    finally { setBusy(false) }
+    setBusy(false)
   }
 
-  return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>Nuestro círculo</h1><p className="muted">Un espacio privado para los dos. Créalo tú o únete con el código que te compartieron.</p>
-    <div className="pairing-choice"><div className="pairing-choice-heading"><span className="pairing-icon"><UsersRound size={19} /></span><div><h2>Crear nuestro círculo</h2><p>Empiezas tú y después compartes la invitación.</p></div></div><button className="button primary full" onClick={createSpace} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={17} />}Crear círculo</button></div>
-    <div className="divider"><span>o ya recibiste un código</span></div>
-    <form className="form-stack" onSubmit={acceptInvite}><label htmlFor="circle-invite">Unirme a un círculo existente</label><input id="circle-invite" className="invite-input" value={invite} onChange={(e) => setInvite(normalizeInviteCode(e.target.value))} placeholder="Código de 48 caracteres" autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck={false} minLength={48} pattern="[a-fA-F0-9]{48}" required /><p className="field-help">El código es de un solo uso y vence siete días después de crearse.</p><button className="button secondary full" disabled={busy || invite.length !== 48}>{busy ? <LoaderCircle className="spin" size={18} /> : <UsersRound size={18} />}Unirme al círculo</button></form>
+  // Shown for every signed-in account without a circle, on every visit: it depends only on the
+  // membership read from Supabase, never on an onboarding flag.
+  return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>Nuestro círculo</h1><p className="muted">Un espacio privado para los dos. Solo una persona lo crea; la otra se une con el código.</p>
+    <div className="pairing-choice" aria-labelledby="pairing-join-title"><div className="pairing-choice-heading"><span className="pairing-icon"><KeyRound size={19} /></span><div><h2 id="pairing-join-title">Ya tengo un código</h2><p>Si la otra persona ya creó nuestro espacio, únete aquí.</p></div></div>
+      <JoinCircleForm id="circle-invite" label="Código de invitación" help="Puedes pegar el mensaje completo de WhatsApp. El código es de un solo uso y vence a los siete días." button="Unirnos con este código" /></div>
+    <div className="divider"><span>o empezamos desde aquí</span></div>
+    <div className="pairing-choice" aria-labelledby="pairing-create-title"><div className="pairing-choice-heading"><span className="pairing-icon"><UsersRound size={19} /></span><div><h2 id="pairing-create-title">Crear nuestro espacio</h2><p>Empiezas tú y después compartes la invitación con la otra persona.</p></div></div><button className="button primary full" onClick={() => void createSpace()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={17} />}Crear nuestro espacio</button></div>
     {error && <p className="form-error pairing-feedback" role="alert">{error}</p>}<button className="text-button auth-toggle" onClick={onSignOut}>Cerrar sesión</button></section></main>
 }
 

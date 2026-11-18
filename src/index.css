@@ -52,7 +52,7 @@ h1 { margin-bottom: 12px; color: var(--color-wine); font-family: var(--font-disp
 .button.light { background: #fffaf5; color: var(--color-wine); }
 .button.full { width: 100%; }
 .text-button { border: 0; background: transparent; color: var(--color-wine); font-size: 12px; font-weight: 600; }
-.auth-toggle { margin-top: 20px; }
+.auth-toggle { min-height: 44px; margin-top: 12px; padding: 0 8px; }
 .form-error, .form-success { margin: 0; font-size: 12px; line-height: 1.5; }
 .form-error { color: #a34545; }.form-success { color: #526a4c; }
 .privacy-note { display: flex; justify-content: center; align-items: center; gap: 7px; margin: 25px 0 0; color: #898078; font-size: 11px; }
@@ -320,3 +320,16 @@ h1 { margin-bottom: 12px; color: var(--color-wine); font-family: var(--font-disp
   .home-ticket-stub::before { top: -11px; bottom: auto; clip-path: inset(50% 0 0 0); }
   .home-ticket-stub::after { top: auto; bottom: -11px; clip-path: inset(0 0 50% 0); }
 }
+
+/* Join with the other person's code: pairing screen (no circle yet) and inside the circle card while we are 1 of 2. */
+.join-circle-form { gap: 10px; }
+.join-circle-form .button { min-height: 48px; }
+.join-circle-form .invite-input { font-size: 16px; } /* 16px avoids iOS zoom on focus */
+.invite-input:focus-visible { outline: 2px solid var(--color-rose-deep); outline-offset: 2px; }
+.join-circle-form .form-error, .pairing-choice .join-circle-form .form-error { margin-top: 2px; color: #a34545; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.pairing-card .pairing-choice .join-circle-form { margin-top: 4px; }
+.circle-join { width: min(100%, 390px); margin: 24px auto 0; padding-top: 22px; border-top: 1px solid #ece5dc; text-align: left; }
+.circle-join h3 { margin: 0 0 6px; color: var(--color-wine); font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1.08; }
+.circle-join > .muted { margin: 0; font-size: 13px; line-height: 1.6; }
+.circle-join .join-circle-form { margin-top: 14px; }
+.circle-join .join-circle-form label { font-size: 12px; font-weight: 600; }

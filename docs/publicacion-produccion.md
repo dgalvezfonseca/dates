@@ -1,6 +1,24 @@
 # Publicación en producción — estado y operaciones pendientes
 
-Fecha: 17 de noviembre de 2026. Rama: `feat/home-diario`. Nada de lo siguiente se ha ejecutado en producción.
+Fecha: 17 de noviembre de 2026. Rama de integración: `integracion/version-estable`.
+
+## Migración 12: vinculación desde un círculo individual (17 nov 2026, con autorización)
+
+`20261117120000_join_from_empty_circle.sql` se aplicó en staging y después en producción. Redefine solo `accept_couple_invite`: quien es el único integrante y dueño de un círculo sin actividad compartida puede aceptar el código de otra persona; su círculo vacío se cierra en la misma transacción y sus favoritos y notas privadas se mueven con él. Historial de producción: 12/12. El cuerpo desplegado en staging y producción coincide con el archivo (md5 `66b47bd592bd84c26c4745271481901c`). La definición anterior quedó respaldada fuera del repositorio en `..\dates-backups\prod-etqnmmrhfggcqzqefvjh-20261117\rollback-accept_couple_invite.sql`.
+
+## Migraciones aplicadas (17 nov 2026, con autorización)
+
+Tras repetir el dry-run (mismo destino y misma lista), se ejecutó `npx supabase db push --remote=etqnmmrhfggcqzqefvjh`. Las ocho migraciones se aplicaron sin errores. Verificación de solo lectura posterior:
+
+- Historial: 11/11 versiones registradas.
+- 21 tablas públicas, todas con RLS; `ai_generations` se conserva.
+- 17 RPC del frontend presentes; ninguna función `SECURITY DEFINER` ejecutable por `anon`.
+- Bucket `memory-album-private`: privado, 3 MB, JPEG/PNG/WebP; políticas `memory_album_select_member`, `memory_album_insert_owner`, `memory_album_delete_owner`.
+- `authenticated` solo tiene SELECT en `date_sessions`, `date_responses`, `date_votes`, `date_confirmations`, `date_memories` y `memory_photos` (las escrituras pasan por RPC); `date_memory_contributions` admite escritura del autor bajo RLS.
+- Realtime: `date_experience_progress`, `date_experience_confirmations`, `date_memories`, `date_memory_contributions`, `memory_photos`.
+- Datos previos intactos: 4 usuarios Auth, 2 círculos, 2 integrantes, 100 citas.
+
+Las secciones siguientes describen el estado previo al despliegue y las operaciones aún pendientes (pasos 1 y 3–6).
 
 ## Estado verificado (solo lectura)
 
