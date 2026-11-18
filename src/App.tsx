@@ -1,4 +1,4 @@
-import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, LoaderCircle, LogOut, Search, ShieldCheck, Sparkles, UsersRound, X } from 'lucide-react'
+import { ArrowRight, BookHeart, Check, ChevronRight, Compass, Flower2, Heart, House, KeyRound, LoaderCircle, LogOut, Search, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
@@ -6,9 +6,10 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { coupleErrorMessage } from './lib/coupleErrorMessage'
 import { filterDates } from './lib/filterDates.mjs'
-import { normalizeInviteCode } from './lib/inviteCode.mjs'
+import JoinCircleForm, { openCircle } from './components/JoinCircleForm'
 import { categories } from './lib/categories'
 import { APP_NAME } from './lib/brand'
+import { authErrorMessage, authRedirectUrl } from './lib/authErrorMessage.mjs'
 
 
 const AnimatedRoute = lazy(() => import('./components/AnimatedRoute'))
@@ -36,9 +37,13 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Supabase emits SIGNED_IN with a fresh session object every time the tab becomes visible again
+  // (e.g. returning from WhatsApp after sharing the invite). Keying on the user id keeps the shell
+  // mounted, so open screens keep their state; only a real account change reloads the circle.
+  const userId = session?.user?.id ?? null
   useEffect(() => {
     let active = true
-    if (!supabase || !session?.user) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
+    if (!supabase || !userId) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
     setGroupReady(false)
     setMemberCount(null)
     let coupleId: string | null = null
@@ -48,7 +53,7 @@ export default function App() {
       if (active && !error) setMemberCount(count ?? 0)
     }
     const timer = window.setInterval(() => { void refreshCount() }, 4000)
-    supabase!.from('couple_members').select('couple_id, role').eq('user_id', session.user.id).maybeSingle()
+    supabase!.from('couple_members').select('couple_id, role').eq('user_id', userId).maybeSingle()
       .then(async ({ data, error }) => {
         if (!active) return
         coupleId = data?.couple_id ?? null
@@ -63,7 +68,7 @@ export default function App() {
         setGroupReady(true)
       })
     return () => { active = false; window.clearInterval(timer) }
-  }, [session])
+  }, [userId])
 
   if (!supabase) return <SetupScreen />
   if (!authReady || (session && !groupReady)) return <LoadingScreen />
@@ -92,8 +97,8 @@ function AuthScreen() {
     if (!supabase) return
     const result = mode === 'login'
       ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({ email: email.trim(), password })
-    if (result.error) setError(result.error.message)
+      : await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: authRedirectUrl(window.location.origin, import.meta.env.BASE_URL) } })
+    if (result.error) setError(authErrorMessage(result.error))
     else if (mode === 'signup' && !result.data.session) setMessage('Revisa tu correo para confirmar la cuenta y después inicia sesión.')
     setBusy(false)
   }
@@ -105,37 +110,27 @@ function AuthScreen() {
 }
 
 function PairingScreen({ email, onSignOut }: { email: string; onSignOut: () => void }) {
-  const [invite, setInvite] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  function openCircle(message: string) {
-    sessionStorage.setItem('circle-notice', message)
-    window.location.assign(new URL('circulo', new URL(import.meta.env.BASE_URL, window.location.origin)).href)
-  }
   async function createSpace() {
+    if (busy) return
     setBusy(true); setError('')
     try {
       const { error: createError } = await supabase!.rpc('create_couple')
       if (createError) setError(coupleErrorMessage(createError))
-      else openCircle('Nuestro círculo está creado. Por ahora somos 1 de 2.')
+      else { openCircle('Nuestro círculo está creado. Por ahora somos 1 de 2.'); return }
     } catch (e) { setError(coupleErrorMessage(e)) }
-    finally { setBusy(false) }
-  }
-  async function acceptInvite(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError('')
-    try {
-      const { error: acceptError } = await supabase!.rpc('accept_couple_invite', { p_token: invite.trim() })
-      if (acceptError) setError(coupleErrorMessage(acceptError))
-      else openCircle('Listo, ya estamos en el mismo círculo.')
-    } catch (e) { setError(coupleErrorMessage(e)) }
-    finally { setBusy(false) }
+    setBusy(false)
   }
 
-  return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>Nuestro círculo</h1><p className="muted">Un espacio privado para los dos. Créalo tú o únete con el código que te compartieron.</p>
-    <div className="pairing-choice"><div className="pairing-choice-heading"><span className="pairing-icon"><UsersRound size={19} /></span><div><h2>Crear nuestro círculo</h2><p>Empiezas tú y después compartes la invitación.</p></div></div><button className="button primary full" onClick={createSpace} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={17} />}Crear círculo</button></div>
-    <div className="divider"><span>o ya recibiste un código</span></div>
-    <form className="form-stack" onSubmit={acceptInvite}><label htmlFor="circle-invite">Unirme a un círculo existente</label><input id="circle-invite" className="invite-input" value={invite} onChange={(e) => setInvite(normalizeInviteCode(e.target.value))} placeholder="Código de 48 caracteres" autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck={false} minLength={48} pattern="[a-fA-F0-9]{48}" required /><p className="field-help">El código es de un solo uso y vence siete días después de crearse.</p><button className="button secondary full" disabled={busy || invite.length !== 48}>{busy ? <LoaderCircle className="spin" size={18} /> : <UsersRound size={18} />}Unirme al círculo</button></form>
+  // Shown for every signed-in account without a circle, on every visit: it depends only on the
+  // membership read from Supabase, never on an onboarding flag.
+  return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>Nuestro círculo</h1><p className="muted">Un espacio privado para los dos. Solo una persona lo crea; la otra se une con el código.</p>
+    <div className="pairing-choice" aria-labelledby="pairing-join-title"><div className="pairing-choice-heading"><span className="pairing-icon"><KeyRound size={19} /></span><div><h2 id="pairing-join-title">Ya tengo un código</h2><p>Si la otra persona ya creó nuestro espacio, únete aquí.</p></div></div>
+      <JoinCircleForm id="circle-invite" label="Código de invitación" help="Puedes pegar el mensaje completo de WhatsApp. El código es de un solo uso y vence a los siete días." button="Unirnos con este código" /></div>
+    <div className="divider"><span>o empezamos desde aquí</span></div>
+    <div className="pairing-choice" aria-labelledby="pairing-create-title"><div className="pairing-choice-heading"><span className="pairing-icon"><UsersRound size={19} /></span><div><h2 id="pairing-create-title">Crear nuestro espacio</h2><p>Empiezas tú y después compartes la invitación con la otra persona.</p></div></div><button className="button primary full" onClick={() => void createSpace()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={17} />}Crear nuestro espacio</button></div>
     {error && <p className="form-error pairing-feedback" role="alert">{error}</p>}<button className="text-button auth-toggle" onClick={onSignOut}>Cerrar sesión</button></section></main>
 }
 
@@ -150,11 +145,15 @@ function Navigation() {
 }
 
 function HomePage({ email, role, coupleId, memberCount }: { email: string; role: string; coupleId: string; memberCount: number }) {
-  return <div className="page-wrap"><div className="page-heading"><div><p className="eyebrow">Un lugar para encontrarnos de nuevo</p><h1>Hola, qué bueno<br className="mobile-break" /> tenerte por aquí.</h1><p className="muted">No tengamos prisa, conozcámonos de nuevo y disfrutemos la experiencia.</p></div><OurPhoto /></div>
-    <section className="welcome-panel"><div className="welcome-copy"><span className="tiny-label"><Sparkles size={14} /> A NUESTRO PROPIO RITMO</span><h2>Lo bonito está<br />en seguir descubriéndonos.</h2><p>Una buena conversación, algo nuevo por probar o simplemente disfrutar el momento juntos.</p><Link to="/planear" className="button light">Preparemos nuestra próxima cita <ArrowRight size={17} /></Link></div><div className="welcome-orbit"><div className="orbit-ring" /><div className="orbit-core"><Heart size={33} strokeWidth={1.3} /></div><span className="orbit-dot dot-one" /><span className="orbit-dot dot-two" /></div></section>
-    <div className="section-title-row"><div><p className="eyebrow">EL COMIENZO</p><h2>Nuestro espacio</h2></div><span className="private-chip"><ShieldCheck size={14} /> Solo nosotros</span></div>
-    <div className="home-grid"><NextDateCard coupleId={coupleId} /><UniqueProgress coupleId={coupleId} /><article className="info-card"><div className="card-icon rose"><Flower2 size={20} /></div><p className="card-kicker">100 CITAS</p><h3>Las citas que nos esperan</h3><p className="muted small">Seis maneras distintas de pasar tiempo juntos, sin convertirlo en una obligación.</p><Link to="/citas" className="inline-link">Ver catálogo <ChevronRight size={16} /></Link></article><article className="info-card soft-sage"><div className="card-icon sage"><UsersRound size={20} /></div><p className="card-kicker">NUESTRO CÍRCULO</p><h3>{memberCount} de 2 integrantes</h3><p className="muted small">{memberCount === 2 ? 'Nuestro espacio ya está listo para empezar.' : 'Comparte la invitación para que estemos los dos.'}</p><span className="status-line"><Check size={15} /> {role === 'owner' ? 'Creado por ti' : 'Te uniste a este espacio'}</span><Link to="/circulo" className="inline-link circle-card-link">Ver círculo <ChevronRight size={16} /></Link></article></div>
-    <footer className="page-footer">Una invitación, nunca una obligación. <span>·</span> Sesión de {email}</footer></div>
+  return <div className="page-wrap home-page">
+    <header className="home-intro"><div className="home-intro-copy"><p className="eyebrow">Un lugar para encontrarnos de nuevo</p><h1>Hola, qué bueno tenerte por aquí.</h1></div><OurPhoto /><p className="home-intro-lead">No tengamos prisa, conozcámonos de nuevo y disfrutemos la experiencia.</p></header>
+    <section className="home-cover" aria-labelledby="home-cover-title"><span className="home-cover-emboss" aria-hidden="true">100</span><div className="home-cover-copy"><p className="home-cover-label">A NUESTRO PROPIO RITMO</p><h2 id="home-cover-title">Lo bonito está<br />en seguir descubriéndonos.</h2><p>Una buena conversación, algo nuevo por probar o simplemente disfrutar el momento juntos.</p><Link to="/planear" className="button light home-cover-cta">Preparemos nuestra próxima cita <ArrowRight size={17} /></Link></div><span className="home-cover-band" aria-hidden="true" /></section>
+    <div className="home-section-head"><div><p className="eyebrow">EL COMIENZO</p><h2>Nuestro espacio</h2></div><span className="home-private"><ShieldCheck size={14} /> Solo nosotros</span></div>
+    <div className="home-pages"><NextDateCard coupleId={coupleId} /><UniqueProgress coupleId={coupleId} />
+      <article className="home-card home-index"><p className="home-kicker"><Flower2 size={14} /> 100 CITAS</p><h3>Las citas que nos esperan</h3><p className="home-note">Seis maneras distintas de pasar tiempo juntos, sin convertirlo en una obligación.</p><Link to="/citas" className="home-link">Ver catálogo <ChevronRight size={16} /></Link></article>
+      <article className="home-card home-stamp"><div className={`home-stamp-seal${memberCount === 2 ? ' complete' : ''}`} aria-hidden="true"><span /><span /></div><div className="home-stamp-body"><p className="home-kicker">NUESTRO CÍRCULO</p><h3>{memberCount} de 2 integrantes</h3><p className="home-note">{memberCount === 2 ? 'Nuestro espacio ya está listo para empezar.' : 'Comparte la invitación para que estemos los dos.'}</p><span className="status-line"><Check size={15} /> {role === 'owner' ? 'Creado por ti' : 'Te uniste a este espacio'}</span><Link to="/circulo" className="home-link">Ver círculo <ChevronRight size={16} /></Link></div></article>
+    </div>
+    <footer className="home-footer">Una invitación, nunca una obligación. <span aria-hidden="true">·</span> Sesión de {email}</footer></div>
 }
 
 function NextDateCard({ coupleId }: { coupleId: string }) {
@@ -173,7 +172,7 @@ function NextDateCard({ coupleId }: { coupleId: string }) {
     void load()
     return () => { active = false }
   }, [coupleId])
-  return <article className="info-card soft-sage"><div className="card-icon sage"><Check size={20} /></div><p className="card-kicker">PRÓXIMA CITA</p><h3>{title}</h3><p className="muted small">Nuestra próxima cita aparecerá aquí cuando los dos la confirmemos.</p><Link to={modeAvailable ? '/cita' : '/planear'} className="inline-link">{modeAvailable ? 'Continuar modo cita' : 'Planear nuestra cita'} <ChevronRight size={16} /></Link></article>
+  return <article className="home-card home-ticket"><div className="home-ticket-main"><p className="home-kicker"><Check size={14} /> PRÓXIMA CITA</p><h3>{title}</h3><p className="home-note">Nuestra próxima cita aparecerá aquí cuando los dos la confirmemos.</p></div><div className="home-ticket-stub"><Link to={modeAvailable ? '/cita' : '/planear'} className="home-link">{modeAvailable ? 'Continuar modo cita' : 'Planear nuestra cita'} <ChevronRight size={16} /></Link></div></article>
 }
 
 function UniqueProgress({ coupleId }: { coupleId: string }) {
@@ -184,7 +183,9 @@ function UniqueProgress({ coupleId }: { coupleId: string }) {
       .then(({ data, error }) => { if (active && !error) setCount(new Set((data ?? []).map((item) => item.selected_date_id).filter(Boolean)).size) })
     return () => { active = false }
   }, [coupleId])
-  return <article className="info-card progress-card"><div className="card-icon rose"><BookHeart size={20} /></div><p className="card-kicker">CITAS QUE YA VIVIMOS</p><h3>{count === null ? '—' : `${count} de 100`}</h3><div className="progress-track" aria-label={`${count ?? 0} de 100 citas que ya vivimos`}><span style={{ width: `${Math.min(count ?? 0, 100)}%` }} /></div><Link to="/recuerdos" className="inline-link">Ver nuestros recuerdos <ChevronRight size={16} /></Link></article>
+  // One square per date in the catalog: a bullet-journal tally of the dates we already lived.
+  const lived = Math.min(count ?? 0, 100)
+  return <article className="home-card home-tally"><p className="home-kicker"><BookHeart size={14} /> CITAS QUE YA VIVIMOS</p><h3>{count === null ? '—' : `${count} de 100`}</h3><div className="home-tally-grid" role="img" aria-label={`${count ?? 0} de 100 citas que ya vivimos`}>{Array.from({ length: 100 }, (_, index) => <span key={index} className={index < lived ? 'lived' : undefined} />)}</div><Link to="/recuerdos" className="home-link">Ver nuestros recuerdos <ChevronRight size={16} /></Link></article>
 }
 
 function CatalogPage({ coupleId }: { coupleId: string }) {

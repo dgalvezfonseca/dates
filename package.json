@@ -12,11 +12,14 @@
     "catalog:filters": "node scripts/test-catalog-filters.mjs",
     "experience:check": "node scripts/test-experience-content.mjs",
     "invite:check": "node scripts/test-invite-code.mjs",
+    "join:check": "node scripts/test-join-circle.mjs",
     "planning:errors:check": "node scripts/test-planning-errors.mjs",
+    "auth:errors:check": "node scripts/test-auth-errors.mjs",
     "staging:auth:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-staging-auth-rls.ps1",
     "staging:ui-fixture": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-staging-mobile-users.ps1 ui-fixture",
     "staging:experience:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-staging-mobile-users.ps1 experience",
     "staging:memories:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-staging-mobile-users.ps1 memories",
+    "staging:circle-join:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-staging-mobile-users.ps1 circle-join",
     "staging:memories:browser-fixture": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-staging-mobile-users.ps1 browser-fixture"
   },
   "dependencies": {
