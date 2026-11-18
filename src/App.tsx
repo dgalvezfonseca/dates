@@ -6,7 +6,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { coupleErrorMessage } from './lib/coupleErrorMessage'
 import { filterDates } from './lib/filterDates.mjs'
-import { normalizeInviteCode } from './lib/inviteCode.mjs'
+import JoinCircleForm, { openCircle } from './components/JoinCircleForm'
 import { categories } from './lib/categories'
 import { APP_NAME } from './lib/brand'
 
@@ -36,9 +36,13 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Supabase re-emits SIGNED_IN with a new session object whenever the tab becomes visible again
+  // (e.g. coming back from WhatsApp with the code). Keying on the user id avoids reloading the circle
+  // and flashing the loading screen; only a real account change reloads it.
+  const userId = session?.user?.id ?? null
   useEffect(() => {
     let active = true
-    if (!supabase || !session?.user) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
+    if (!supabase || !userId) { setMembership(null); setMemberCount(null); setGroupError(''); setGroupReady(true); return }
     setGroupReady(false)
     setMemberCount(null)
     let coupleId: string | null = null
@@ -48,7 +52,7 @@ export default function App() {
       if (active && !error) setMemberCount(count ?? 0)
     }
     const timer = window.setInterval(() => { void refreshCount() }, 4000)
-    supabase!.from('couple_members').select('couple_id, role').eq('user_id', session.user.id).maybeSingle()
+    supabase!.from('couple_members').select('couple_id, role').eq('user_id', userId).maybeSingle()
       .then(async ({ data, error }) => {
         if (!active) return
         coupleId = data?.couple_id ?? null
@@ -63,7 +67,7 @@ export default function App() {
         setGroupReady(true)
       })
     return () => { active = false; window.clearInterval(timer) }
-  }, [session])
+  }, [userId])
 
   if (!supabase) return <SetupScreen />
   if (!authReady || (session && !groupReady)) return <LoadingScreen />
@@ -105,14 +109,9 @@ function AuthScreen() {
 }
 
 function PairingScreen({ email, onSignOut }: { email: string; onSignOut: () => void }) {
-  const [invite, setInvite] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  function openCircle(message: string) {
-    sessionStorage.setItem('circle-notice', message)
-    window.location.assign(new URL('circulo', new URL(import.meta.env.BASE_URL, window.location.origin)).href)
-  }
   async function createSpace() {
     setBusy(true); setError('')
     try {
@@ -122,20 +121,11 @@ function PairingScreen({ email, onSignOut }: { email: string; onSignOut: () => v
     } catch (e) { setError(coupleErrorMessage(e)) }
     finally { setBusy(false) }
   }
-  async function acceptInvite(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError('')
-    try {
-      const { error: acceptError } = await supabase!.rpc('accept_couple_invite', { p_token: invite.trim() })
-      if (acceptError) setError(coupleErrorMessage(acceptError))
-      else openCircle('Listo, ya estamos en el mismo círculo.')
-    } catch (e) { setError(coupleErrorMessage(e)) }
-    finally { setBusy(false) }
-  }
 
   return <main className="center-page"><section className="pairing-card"><BrandMark /><p className="eyebrow">Hola, {email}</p><h1>Nuestro círculo</h1><p className="muted">Un espacio privado para los dos. Créalo tú o únete con el código que te compartieron.</p>
     <div className="pairing-choice"><div className="pairing-choice-heading"><span className="pairing-icon"><UsersRound size={19} /></span><div><h2>Crear nuestro círculo</h2><p>Empiezas tú y después compartes la invitación.</p></div></div><button className="button primary full" onClick={createSpace} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={17} />}Crear círculo</button></div>
     <div className="divider"><span>o ya recibiste un código</span></div>
-    <form className="form-stack" onSubmit={acceptInvite}><label htmlFor="circle-invite">Unirme a un círculo existente</label><input id="circle-invite" className="invite-input" value={invite} onChange={(e) => setInvite(normalizeInviteCode(e.target.value))} placeholder="Código de 48 caracteres" autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck={false} minLength={48} pattern="[a-fA-F0-9]{48}" required /><p className="field-help">El código es de un solo uso y vence siete días después de crearse.</p><button className="button secondary full" disabled={busy || invite.length !== 48}>{busy ? <LoaderCircle className="spin" size={18} /> : <UsersRound size={18} />}Unirme al círculo</button></form>
+    <JoinCircleForm id="circle-invite" label="Unirme a un círculo existente" help="Puedes pegar el mensaje completo de WhatsApp. El código es de un solo uso y vence siete días después de crearse." button="Unirnos con este código" />
     {error && <p className="form-error pairing-feedback" role="alert">{error}</p>}<button className="text-button auth-toggle" onClick={onSignOut}>Cerrar sesión</button></section></main>
 }
 

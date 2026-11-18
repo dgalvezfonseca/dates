@@ -211,3 +211,14 @@ h1, .welcome-copy h2 { margin-bottom: 12px; color: var(--color-wine); font-famil
 @media (max-width: 760px) { .mobile-nav .nav-list { grid-template-columns: repeat(5,1fr); }.circle-heading { align-items: flex-start; flex-direction: column; }.circle-count { font-size: 11px; } }
 @media (max-width: 390px) { .pairing-choice { padding: 13px; }.circle-panel { margin: 15px auto; padding: 22px 16px; }.circle-code { padding: 12px; } }
 @media (max-width: 360px) { .our-photo { margin-left: 8px; }.our-photo img { width: 72px; }.welcome-copy h2 { font-size: 33px; } }
+
+/* Join with the other person's code: pairing screen, and inside the circle card while we are 1 of 2. */
+.join-circle-form .button { min-height: 48px; }
+.join-circle-form .form-error { margin-top: 2px; color: #a34545; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.circle-join { width: min(100%, 390px); margin: 24px auto 0; padding-top: 22px; border-top: 1px solid #ece5dc; text-align: left; }
+.circle-join h3 { margin: 0 0 6px; color: var(--color-wine); font-family: var(--font-display); font-size: 24px; font-weight: 500; line-height: 1.1; }
+.circle-join > .muted { margin: 0; font-size: 13px; line-height: 1.6; }
+.circle-join .join-circle-form { gap: 10px; margin-top: 14px; }
+.circle-join .join-circle-form label { font-size: 12px; font-weight: 600; }
+.invite-input:focus-visible { outline: 2px solid var(--color-rose-deep); outline-offset: 2px; }
+.join-circle-form .invite-input { font-size: 16px; } /* 16px avoids iOS zoom on focus */
